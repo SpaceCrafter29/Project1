@@ -2031,3 +2031,77 @@ blockquote {
   font-weight: 700;
   pointer-events: none;
 }
+
+/* ---------- Test checklist (single-file demo) ---------- */
+
+.test-guide {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: calc(100vw - 32px);
+}
+
+.test-guide-toggle {
+  padding: 0.55rem 1rem;
+  border: 2px solid var(--yellow-deep);
+  border-radius: var(--sketch-sm);
+  background: var(--yellow);
+  color: var(--ink-strong);
+  font: inherit;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.test-guide-body {
+  order: -1;
+  width: 420px;
+  max-width: 100%;
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  padding: 1rem 1.1rem;
+  border: 2px solid var(--yellow-line);
+  border-radius: var(--sketch);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.test-guide-body h4 {
+  margin: 0.9rem 0 0.3rem;
+}
+
+.test-guide-body ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.test-guide-body li label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.test-guide-body input[type='checkbox'] {
+  margin-top: 0.3rem;
+  accent-color: var(--yellow-deep);
+}
+
+.test-guide-body li label:has(input:checked) span {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--yellow-deep);
+}
+
+.test-guide-body .actions .btn {
+  text-decoration: none;
+}

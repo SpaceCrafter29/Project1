@@ -80,6 +80,12 @@ The merge rules live in [`shared/verdict.ts`](shared/verdict.ts) and [`shared/al
 - The server sends a `Content-Security-Policy` for the worker script (`default-src 'none'; script-src 'self' 'unsafe-eval'`), so it cannot open connections or load external code.
 - An end-to-end test asserts this.
 
+## Try it without installing anything
+
+[`demo/olympiad-coach-demo.html`](demo/olympiad-coach-demo.html) is the whole app in a single file. Open it in any current browser – no server, no key. The demo coach runs inside the page, and a **test checklist** (bottom right) walks you through every feature, with checkboxes and a "Reset demo data" button.
+
+Rebuild it with `npm run build:demo`. The same checklist appears in the normal app when you add `?guide` to the URL.
+
 ## Quick start
 
 Requirements: Node.js ≥ 20.19.
@@ -159,6 +165,7 @@ npm run test:e2e     # Playwright: full flow in demo mode (real browser, worker,
                      # geometry flow with dragging, mobile layout, sandbox isolation;
                      # writes docs/screenshots/
 npm run typecheck
+npm run build:demo   # single-file demo; tests/e2e/standalone.spec.ts opens it from disk
 ```
 
 ## Architecture

@@ -3,7 +3,8 @@ import type { Usage } from '../shared/api';
 import { MathText } from './components/MathText';
 import { Button } from './components/ui';
 import { SessionView } from './features/SessionView';
-import { API_CALL_EVENT, api } from './lib/api';
+import { TestGuide } from './features/TestGuide';
+import { API_CALL_EVENT, STANDALONE, api } from './lib/api';
 import { isDemo, useConfig } from './lib/config';
 import { href, navigate, useRoute } from './lib/router';
 import { getStore } from './lib/storage';
@@ -27,15 +28,20 @@ export function App() {
       </header>
       {isDemo(config) && (
         <aside className="demo-banner sticky-note" data-testid="demo-banner">
-          <strong>Demo mode</strong> – no API key yet, so the coach answers with scripted examples: a number theory problem
-          (IMO 1964/1) and a geometry problem. Use the “Sample” buttons.
+          <strong>Demo mode</strong> –{' '}
+          {STANDALONE ? 'everything runs in this one file, and the coach' : 'no API key yet, so the coach'} answers with
+          scripted examples: a number theory problem (IMO 1964/1) and a geometry problem. Use the “Sample” buttons
+          {STANDALONE && ' and the test checklist at the bottom right'}.
         </aside>
       )}
       <main className="main">{route.name === 'home' ? <Home /> : <SessionView key={route.id} id={route.id} tab={route.tab} />}</main>
       <Footer />
+      {showGuide && <TestGuide />}
     </div>
   );
 }
+
+const showGuide = STANDALONE || new URLSearchParams(window.location.search).has('guide');
 
 /** Compass-and-triangle doodle used as the logo. */
 function BrandDoodle() {

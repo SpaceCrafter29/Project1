@@ -9,7 +9,7 @@ import type { CheckRun } from '../session/types';
 
 export const CHECK_TIMEOUT_MS = 3000;
 
-const newWorker = () => new Worker(new URL('../workers/sandbox.worker.ts', import.meta.url), { type: 'module' });
+import { createSandboxWorker as newWorker } from './workerFactory';
 
 /** Runs code in a fresh Web Worker; terminates it after the time limit. */
 export function runInSandbox(code: string, timeoutMs = CHECK_TIMEOUT_MS, args?: RunArgs): Promise<CodeRunResult> {

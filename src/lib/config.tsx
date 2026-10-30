@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { ServerConfig } from '../../shared/api';
 import { api } from './api';
+import { sampleUrl } from './samples';
 
 const ConfigContext = createContext<ServerConfig | null>(null);
 
@@ -21,5 +22,5 @@ export const isDemo = (config: ServerConfig | null) => config?.provider === 'moc
 /** Sample photos for demo mode, matching the scripted problem of the given topic. */
 export function demoSample(kind: 'progress' | 'solution' | 'own-version', topic: string): string {
   const prefix = topic.toLowerCase().includes('geometry') ? 'geometry-' : '';
-  return `/samples/${prefix}${kind}.png`;
+  return sampleUrl(`${prefix}${kind}.png`);
 }

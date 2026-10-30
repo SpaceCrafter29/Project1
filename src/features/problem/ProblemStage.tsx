@@ -4,6 +4,7 @@ import { MathText } from '../../components/MathText';
 import { Button, Card, ErrorBox, Taped } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
 import { isDemo, useConfig } from '../../lib/config';
+import { sampleUrl } from '../../lib/samples';
 import type { StageProps } from '../SessionView';
 import { ProblemCard } from './ProblemCard';
 
@@ -48,8 +49,8 @@ export function ProblemStage({ session, update, go }: StageProps) {
           samples={
             isDemo(config)
               ? [
-                  { label: 'Sample: number theory', url: '/samples/problem.png' },
-                  { label: 'Sample: geometry', url: '/samples/geometry-problem.png' },
+                  { label: 'Sample: number theory', url: sampleUrl('problem.png') },
+                  { label: 'Sample: geometry', url: sampleUrl('geometry-problem.png') },
                 ]
               : []
           }

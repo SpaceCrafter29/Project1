@@ -7,3 +7,4 @@ test-results/
 playwright-report/
 handwriting-report/
 *.log
+demo-dist/

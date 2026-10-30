@@ -37,7 +37,19 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** True in the single-file demo build, which has no server. */
+export const STANDALONE = import.meta.env.VITE_STANDALONE === 'true';
+
 async function request<T>(path: string, body?: unknown): Promise<T> {
+  if (STANDALONE) {
+    const { localRequest } = await import('./localServer');
+    if (body !== undefined) window.dispatchEvent(new Event(API_CALL_EVENT));
+    try {
+      return (await localRequest(path, body)) as T;
+    } catch (err) {
+      throw new ApiRequestError((err as Error).message);
+    }
+  }
   let res: Response;
   try {
     res = await fetch(`/api/${path}`, {

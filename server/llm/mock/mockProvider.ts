@@ -26,17 +26,19 @@ function scriptFor(problem: string | undefined): DemoScript {
   return SCRIPTS.find((s) => problem && s.matches(problem)) ?? numberTheory;
 }
 
-/** Width/height of a PNG or JPEG data URL, without decoding the image. */
+/** Width/height of a PNG or JPEG data URL, without decoding the image (works in Node and browsers). */
 export function imageSize(dataUrl: string): { width: number; height: number } | null {
-  const bytes = Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
-  if (bytes.readUInt32BE(0) === 0x89504e47) return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
-  for (let i = 2; i + 9 < bytes.length; ) {
-    if (bytes[i] !== 0xff) return null;
-    const marker = bytes[i + 1];
+  const binary = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
+  const bytes = new DataView(Uint8Array.from(binary, (c) => c.charCodeAt(0)).buffer);
+  if (bytes.byteLength < 24) return null;
+  if (bytes.getUint32(0) === 0x89504e47) return { width: bytes.getUint32(16), height: bytes.getUint32(20) };
+  for (let i = 2; i + 9 < bytes.byteLength; ) {
+    if (bytes.getUint8(i) !== 0xff) return null;
+    const marker = bytes.getUint8(i + 1);
     if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
-      return { width: bytes.readUInt16BE(i + 7), height: bytes.readUInt16BE(i + 5) };
+      return { width: bytes.getUint16(i + 7), height: bytes.getUint16(i + 5) };
     }
-    i += 2 + bytes.readUInt16BE(i + 2);
+    i += 2 + bytes.getUint16(i + 2);
   }
   return null;
 }
