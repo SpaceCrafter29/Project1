@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
-import { fileToDataUrl } from '../lib/image';
+import { downscale, fileToDataUrl, MAX_SIDE } from '../lib/image';
 import { Button } from './ui';
 
 /** Mounted inputs; a pasted image goes to the most recently opened one. */
@@ -78,11 +78,15 @@ export function ImageInput({
     void addBlobs([...event.dataTransfer.files]);
   };
 
+  // Loaded like an image, not with fetch(): viewers that open the single-file demo may block fetch.
   const loadSample = async (url: string) => {
     setBusy(true);
+    setError('');
     try {
-      const blob = await (await fetch(url)).blob();
-      await addBlobs([blob]);
+      const image = await downscale(url, MAX_SIDE);
+      onChange([...imagesRef.current, image].slice(0, max));
+    } catch (err) {
+      setError(`Could not load the sample image: ${(err as Error).message}`);
     } finally {
       setBusy(false);
     }

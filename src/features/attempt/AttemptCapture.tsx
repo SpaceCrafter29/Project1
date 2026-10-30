@@ -62,6 +62,7 @@ export function AttemptCapture({
           <Button variant="primary" disabled={images.length === 0} busy={busy} onClick={() => void recognize()} data-testid="read-solution">
             Read my solution
           </Button>
+          {images.length === 0 && <span className="muted small">Add a photo of your solution first.</span>}
         </div>
       </Card>
     );

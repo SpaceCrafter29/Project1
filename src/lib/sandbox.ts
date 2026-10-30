@@ -15,7 +15,14 @@ import { createSandboxWorker as newWorker } from './workerFactory';
 export function runInSandbox(code: string, timeoutMs = CHECK_TIMEOUT_MS, args?: RunArgs): Promise<CodeRunResult> {
   return new Promise((resolve) => {
     const started = performance.now();
-    const worker = newWorker();
+    let worker: Worker;
+    try {
+      worker = newWorker();
+    } catch (err) {
+      // e.g. a viewer that forbids workers: the check is simply "could not be tested"
+      resolve({ status: 'error', error: `Code checks are not available here (${(err as Error).message})`, ms: 0 });
+      return;
+    }
     const timer = setTimeout(() => {
       worker.terminate();
       resolve({ status: 'timeout', ms: performance.now() - started });
@@ -44,7 +51,12 @@ export class FigureRunner {
   private pending = new Map<number, (r: CodeRunResult) => void>();
 
   run(code: string, args: RunArgs, timeoutMs = 1000): Promise<CodeRunResult> {
-    const worker = this.ensure();
+    let worker: Worker;
+    try {
+      worker = this.ensure();
+    } catch (err) {
+      return Promise.resolve({ status: 'error', error: `Figures are not available here (${(err as Error).message})`, ms: 0 });
+    }
     const id = ++this.nextId;
     const started = performance.now();
     return new Promise((resolve) => {

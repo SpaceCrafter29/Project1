@@ -60,6 +60,7 @@ export function ProblemStage({ session, update, go }: StageProps) {
           <Button variant="primary" disabled={images.length === 0} busy={busy} onClick={read} data-testid="read-problem">
             Read the problem
           </Button>
+          {images.length === 0 && <span className="muted small">Add a photo, a screenshot or a sample first.</span>}
         </div>
       </Card>
     );

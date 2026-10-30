@@ -57,3 +57,29 @@ test('single-file demo runs from disk without a server', async ({ page }) => {
 
   expect(errors).toEqual([]);
 });
+
+test('single-file demo still works where fetch and workers are blocked', async ({ page }) => {
+  // Some viewers that open HTML files restrict the page; samples must load and the flow must go on.
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(file, 'utf8').replace(
+    '<head>',
+    `<head><meta http-equiv="Content-Security-Policy" content="connect-src 'none'; worker-src 'none'">`,
+  );
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setContent(html, { waitUntil: 'load' });
+  await page.getByTestId('new-problem').click();
+  await expect(page.getByTestId('read-problem')).toBeDisabled();
+  await page.getByRole('button', { name: 'Sample: number theory' }).click();
+  await expect(page.getByTestId('read-problem')).toBeEnabled();
+  await page.getByTestId('read-problem').click();
+  await page.getByTestId('confirm-problem-btn').click();
+  // Without workers the table cannot be computed – that is shown, and the tip loop continues.
+  await expect(page.getByTestId('tip-1')).toContainText('could not be computed');
+  await page.getByRole('button', { name: 'Use sample progress' }).click();
+  await page.getByTestId('read-progress').click();
+  await page.getByTestId('next-tip').click();
+  await expect(page.getByTestId('tip-2')).toContainText('A pattern in six values');
+  await expect(page.getByTestId('tip-2').getByTestId('check-result')).toContainText('Could not be tested');
+  expect(errors).toEqual([]);
+});
