@@ -1,0 +1,53 @@
+// Validation of incoming request bodies.
+import { z } from 'zod';
+
+const imageUrl = z
+  .string()
+  .regex(/^data:image\/(png|jpe?g|webp|gif);base64,/, 'images must be base64 data URLs');
+const images = z.array(imageUrl).min(1).max(8);
+const problem = z.string().trim().min(1).max(20_000);
+const step = z.object({ id: z.string().min(1).max(20), text: z.string().max(5_000) });
+const steps = z.array(step).min(1).max(80);
+const turn = z.object({ role: z.enum(['user', 'coach', 'check']), text: z.string().max(10_000) });
+const history = z.array(turn).max(60).default([]);
+const status = z.enum(['valid', 'gap', 'error', 'unclear']);
+const idea = z.object({ one_liner: z.string().min(1), principle: z.string().min(1), principle_sentence: z.string() });
+
+export const requestSchemas = {
+  transcribe: z.object({ images }),
+  hint: z.object({ problem, stage: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(6)]) }),
+  conjecture: z.object({
+    problem,
+    conjecture: z.string().trim().min(1).max(2_000),
+    table: z
+      .object({ columns: z.array(z.string()), rows: z.array(z.array(z.union([z.string(), z.number()]))) })
+      .optional(),
+  }),
+  recognize: z.object({ problem, images, intendedIdea: z.string().max(1_000).optional() }),
+  evaluate: z.object({ problem, steps, intendedIdea: z.string().max(1_000).optional() }),
+  discuss: z.object({
+    problem,
+    steps,
+    stepId: z.string(),
+    critique: z.object({ status, reason: z.string(), quote: z.string(), evidence: z.string() }),
+    history,
+  }),
+  ask: z.object({
+    problem,
+    question: z.string().max(2_000),
+    history,
+    studentSteps: steps.optional(),
+    context: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('image'), crop: imageUrl, fullImage: imageUrl }),
+      z.object({ kind: z.literal('text'), marked: steps, solution: steps }),
+    ]),
+  }),
+  correct: z.object({
+    problem,
+    steps,
+    verdicts: z.array(z.object({ stepId: z.string(), status, reason: z.string() })),
+  }),
+  propose: z.object({ problem, steps }),
+  develop: z.object({ problem, idea }),
+  challenge: z.object({ problem, solution: steps, stepId: z.string(), concern: z.string().max(2_000) }),
+};
