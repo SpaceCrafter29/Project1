@@ -1,15 +1,16 @@
 import { useSyncExternalStore } from 'react';
 
-export type TabId = 'problem' | 'understand' | 'solution' | 'feedback' | 'ask' | 'fix' | 'learn';
+export type TabId = 'problem' | 'work' | 'solution' | 'feedback' | 'ask' | 'fix' | 'learn';
 
 export type Route = { name: 'home' } | { name: 'session'; id: string; tab: TabId };
 
-const TABS: TabId[] = ['problem', 'understand', 'solution', 'feedback', 'ask', 'fix', 'learn'];
+const TABS: TabId[] = ['problem', 'work', 'solution', 'feedback', 'ask', 'fix', 'learn'];
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts[0] === 'p' && parts[1]) {
-    const tab = TABS.includes(parts[2] as TabId) ? (parts[2] as TabId) : 'problem';
+    const requested = parts[2] === 'understand' ? 'work' : parts[2]; // old links
+    const tab = TABS.includes(requested as TabId) ? (requested as TabId) : 'problem';
     return { name: 'session', id: parts[1], tab };
   }
   return { name: 'home' };

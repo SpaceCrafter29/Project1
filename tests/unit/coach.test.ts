@@ -116,3 +116,24 @@ describe('Coach.correct', () => {
     expect(result.approaches[0]).toMatchObject({ approach_works: 'partly', fails_at: 's2' });
   });
 });
+
+describe('Coach.nextHint', () => {
+  it('sends history, previous and current work, and maps the focused step', async () => {
+    const { provider, calls } = byTask({
+      nexthint: { progress: 'ok', status: 'On Track', hint: 'Look at step 2 again.', level: '2', tool: 'Small Cases', focus_step: 'Step 2' },
+    });
+    const result = await new Coach(provider, models).nextHint({
+      problem: 'P',
+      progress: steps,
+      previousProgress: steps.slice(0, 1),
+      note: 'stuck at 2',
+      history: [{ hint: 'first tip', level: 1 }],
+    });
+    expect(result).toMatchObject({ status: 'on_track', level: 2, tool: 'small_cases', focus_step: 's2' });
+    const prompt = JSON.stringify(calls[0].messages);
+    expect(prompt).toContain('Tip 1 (level 1): first tip');
+    expect(prompt).toContain("STUDENT'S WORK AT THE PREVIOUS TIP");
+    expect(prompt).toContain('stuck at 2');
+    expect(prompt).toContain('Never write out the solution');
+  });
+});

@@ -19,7 +19,7 @@ export function useConfig(): ServerConfig | null {
 export const isDemo = (config: ServerConfig | null) => config?.provider === 'mock';
 
 /** Sample photos for demo mode, matching the scripted problem of the given topic. */
-export function demoSample(kind: 'solution' | 'own-version', topic: string): string {
+export function demoSample(kind: 'progress' | 'solution' | 'own-version', topic: string): string {
   const prefix = topic.toLowerCase().includes('geometry') ? 'geometry-' : '';
   return `/samples/${prefix}${kind}.png`;
 }

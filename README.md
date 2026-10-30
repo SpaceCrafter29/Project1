@@ -1,6 +1,6 @@
 # Olympiad Coach
 
-A web app that coaches students through math olympiad problems **without giving the solution away**. You photograph a problem, reveal hints one stage at a time, solve it on paper, photograph your handwritten solution, and get step-by-step feedback that has been **checked twice and, where possible, tested by code** before you see it.
+A web app that coaches students through math olympiad problems **without giving the solution away**. You photograph a problem and work on it on paper. Whenever you are stuck, you photograph your progress and get one tip made for exactly where you are. At the end you photograph your solution and get step-by-step feedback that has been **checked twice and, where possible, tested by code** before you see it.
 
 Built for the Meta Global AI Developer Hackathon (submission deadline 4 Nov 2026, 21:00 ET) on the Meta Model API (Muse Spark, optionally Muse Wonder for verification).
 
@@ -11,7 +11,7 @@ The interface is a math notebook: white squared paper, handwriting (Comic Sans, 
 ## Principles
 
 - **Paper, not keyboard.** Problems and solutions come in as photos/screenshots; thinking happens with a pen.
-- **Hints, not solutions.** Nothing is revealed unless you ask for it, one stage at a time.
+- **Tips for where you are, not solutions.** One tip at a time, based on a photo of your own progress, and more concrete only when you stay stuck.
 - **Claims are checked by code**, not only by the model (brute force, counterexample search, random tests), in a sandboxed Web Worker.
 - **You confirm what was read** (problem text and solution steps) before anything is judged.
 - **No gaslighting.** A step is only called a gap or an error when the critique quotes it, gives concrete evidence, and an independent second call could not defend it. Everything doubtful is shown as *unclear*.
@@ -22,8 +22,8 @@ The interface is a math notebook: white squared paper, handwriting (Comic Sans, 
 | # | Screen | What happens |
 |---|--------|--------------|
 | 1 | **Problem** | Photo, screenshot (paste with Ctrl+V) or file. The model transcribes it; you confirm or fix it ("Did I read this correctly?"). |
-| 2 | **Understand** | Six stages, each revealed on click and in order: in simple words · given/wanted · small cases (code computes a table) · your conjecture (feedback + code test) · method hint · proof skeleton without content. |
-| 3 | **Your solution** | Photograph your handwritten pages; the recognized steps are shown next to the photo and you fix reading errors. |
+| 2 | **Work on it** | The tip loop: one tip to start, then work on paper and photograph your progress (or just write where you are stuck). You confirm what was read, and the next tip builds on exactly your work. It acknowledges what you have, nudges the next step, and gets more concrete only if you make no progress (direction → concrete idea → key insight, never the solution). A tip can attach a tool when it helps: the problem in simple words, given/wanted, small cases computed by code (an interactive figure for geometry), a method, or a proof skeleton. If a claim in your work is testable, a code check runs on it. When your work looks complete, you can send it straight to the full check. |
+| 3 | **Final solution** | Photograph your handwritten pages; the recognized steps are shown next to the photo and you fix reading errors. |
 | 4 | **Feedback** | Every step: *valid* / *gap* / *error* / *unclear*, with reason, quote, evidence, code-check result, score estimate 0–7 (as a range when steps are unclear). Disagree with any verdict and discuss it as equals. |
 | 5 | **Ask with pen** | Circle a spot on your solution image; the crop (bounding box + margin), the full page and your question go to the coach. Every marking has its own chat. |
 | 6 | **Fix your approach** | One card per approach: does it carry (yes/partly/no), where exactly it breaks, and the minimal repair as hints (direction first, then detail). |
@@ -36,7 +36,7 @@ A permanent footer reminds you: *The AI can make mistakes. Check steps that look
 Geometry gets the same coaching, with figures instead of number tables:
 
 - **Reading the problem:** the transcription also describes the figure in words (points, lines, marked lengths and angles). You confirm that description like the text, and the original image stays next to the problem.
-- **Small cases become an experiment:** stage 3 draws the configuration as an interactive figure on squared paper. The model writes construction code from draggable points, which re-runs in the sandbox on every drag. Live measurements (lengths, angles, areas) let you see what stays the same.
+- **Small cases become an experiment:** when a tip attaches small cases, a geometry problem gets an interactive figure on squared paper instead of a table. The model writes construction code from draggable points, which re-runs in the sandbox on every drag. Live measurements (lengths, angles, areas) let you see what stays the same.
 - **Claims are tested on random shapes:** checks use a small geometry library (`geo`: midpoints, intersections, feet of perpendiculars, circumcenter, areas, `collinear`/`concyclic` tests, random triangles and convex quadrilaterals, …). For example, "the area of MNPQ is MN · NP" is refuted with a concrete quadrilateral, out of 2000 random ones tested.
 - **Alternative solutions** for geometry come with their own figure showing the construction they use.
 

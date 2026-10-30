@@ -77,8 +77,9 @@ function Home() {
           Learn to find the <span className="marker">proof</span> yourself.
         </h1>
         <p>
-          Photograph an olympiad problem, get hints one stage at a time, solve it on paper, and let the coach check
-          your own solution step by step – without giving the answer away.
+          Photograph an olympiad problem and work on it on paper. Whenever you get stuck, photograph your progress and
+          get a tip made for exactly where you are – never the answer. At the end the coach checks your solution step
+          by step.
         </p>
         <Button variant="primary" onClick={start} data-testid="new-problem">
           New problem
@@ -89,10 +90,10 @@ function Home() {
           <strong>Upload</strong> a photo or screenshot of the problem.
         </li>
         <li>
-          <strong>Understand</strong> it with hints you reveal one by one.
+          <strong>Get one tip</strong> and work on paper as far as you can.
         </li>
         <li>
-          <strong>Solve</strong> it on paper and photograph your solution.
+          <strong>Photograph your progress</strong> – the next tip is made for exactly where you are.
         </li>
         <li>
           <strong>Get feedback</strong> on every step – checked twice, and by code where possible.
@@ -138,7 +139,8 @@ function titleOf(s: Session): string {
 function progressOf(s: Session): string {
   if (s.attempt?.assessment) return 'solution checked';
   if (s.attempt?.confirmed) return 'solution submitted';
-  if (s.hints.revealed > 0) return `${s.hints.revealed}/6 hint stages`;
+  const tips = s.coaching?.length ?? 0;
+  if (tips > 0) return tips === 1 ? '1 tip so far' : `${tips} tips so far`;
   if (s.problem?.confirmed) return 'problem confirmed';
   return 'just started';
 }

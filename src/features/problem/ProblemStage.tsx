@@ -132,7 +132,7 @@ export function ProblemStage({ session, update, go }: StageProps) {
               update((d) => {
                 d.problem!.confirmed = true;
               });
-              go('understand');
+              go('work');
             }}
             data-testid="confirm-problem-btn"
           >
@@ -157,10 +157,10 @@ export function ProblemStage({ session, update, go }: StageProps) {
     <div className="stack" data-testid="problem-confirmed">
       <ProblemCard problem={problem} title={problem.topic ? `The problem · ${problem.topic}` : 'The problem'} />
       <div className="actions">
-        <Button variant="primary" onClick={() => go('understand')}>
-          Understand it step by step
+        <Button variant="primary" onClick={() => go('work')}>
+          Start working – get a first tip
         </Button>
-        <Button onClick={() => go('solution')}>I'm ready to solve it on paper</Button>
+        <Button onClick={() => go('solution')}>I already have a full solution</Button>
         <Button
           variant="ghost"
           onClick={() =>

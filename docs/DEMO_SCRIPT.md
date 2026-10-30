@@ -10,8 +10,8 @@ Show the home page and click **New problem**.
 ## 0:20 – Upload and confirm (20 s)
 Paste a screenshot of IMO 1964 Problem 1. The coach transcribes it and asks: *Did I read this correctly?* Point out that nothing is judged until you confirm.
 
-## 0:40 – Understand, stage by stage (35 s)
-Reveal **In simple words** and **Given / wanted**. Then reveal **Small cases**: "This table is computed by code in the browser, not invented by the model." Type the conjecture "7 divides 2^n − 1 exactly when n is a multiple of 3" and show the feedback, which code has tested for 5000 cases. Briefly show that the method hint and the proof skeleton stay locked until you ask for them.
+## 0:40 – The tip loop (35 s)
+The first tip appears by itself: "work with remainders". It comes with a table that code computed in the browser, not the model. Show a photo of unfinished work (remainders 2, 4, 1, … and a conjecture) and confirm what was read. The next tip starts from *your* work: "You computed the remainders and stated a conjecture" (code tested it for 5000 values), then "a pattern is not a proof yet". Write "I still don't see why it repeats" and ask again without a photo: the tip gets more concrete (compare $2^{n+3}$ with $2^n$), but it still doesn't give the answer away.
 
 ## 1:15 – Handwritten solution (15 s)
 Photograph the handwritten solution. Show the recognized steps next to the photo and fix a reading error, if there is one.

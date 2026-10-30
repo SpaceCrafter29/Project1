@@ -15,7 +15,7 @@ export type Task =
   | 'hint.3'
   | 'hint.5'
   | 'hint.6'
-  | 'conjecture'
+  | 'nexthint'
   | 'recognize'
   | 'evaluate'
   | 'refute'

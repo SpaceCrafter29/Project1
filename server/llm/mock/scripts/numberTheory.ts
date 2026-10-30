@@ -3,7 +3,7 @@
 // (confirmed critique, critique withdrawn after refutation, code counterexample,
 // logic-only alternative, discarded alternative).
 import type { FirstPassStep, Solution } from '../../../../shared/schemas';
-import { S, noCheck, type DemoScript } from './types';
+import { S, looksComplete, noCheck, type DemoScript } from './types';
 
 export const DEMO_PROBLEM = String.raw`(a) Find all positive integers $n$ for which $2^n - 1$ is divisible by $7$.
 (b) Prove that there is no positive integer $n$ for which $2^n + 1$ is divisible by $7$.`;
@@ -262,30 +262,84 @@ export const numberTheory: DemoScript = {
       ],
     },
   },
-  conjecture(input) {
-    const c = input.conjecture.toLowerCase();
-    if (/\b3\b|three|3k|third/.test(c)) {
+  progressSteps: [
+    S`$2^1 = 2$, $2^2 = 4$, $2^3 = 8$, $2^4 = 16$, $2^5 = 32$, $2^6 = 64$.`,
+    S`Remainders mod 7: $2, 4, 1, 2, 4, 1$.`,
+    S`$2^n - 1$ is divisible by 7 for $n = 3$ and $n = 6$.`,
+    S`Conjecture: $7 \mid 2^n - 1$ exactly when $3 \mid n$?`,
+  ],
+  nextHint(input, level) {
+    const note = input.note.toLowerCase();
+    if (input.progress.length === 0) {
+      if (input.history.length === 0) {
+        return {
+          progress: '',
+          status: 'not_started',
+          hint: S`Huge powers are hard to divide – but you only care about the remainder. Start on paper: compute $2^n$ modulo 7 for the first few $n$.`,
+          question: 'What happens to the remainder each time you multiply by 2?',
+          level: 1,
+          tool: 'small_cases',
+          focus_step: null,
+          ...noCheck,
+        };
+      }
+      if (/understand|meaning|what does|verstehe/.test(note)) {
+        return {
+          progress: '',
+          status: 'stuck',
+          hint: 'Here is the problem in simple words. Then try the first few values of n by hand.',
+          question: S`For $n = 3$: is $2^3 - 1$ a multiple of 7?`,
+          level: 1,
+          tool: 'simple_words',
+          focus_step: null,
+          ...noCheck,
+        };
+      }
       return {
-        verdict: 'consistent',
-        feedback: S`That matches the table: the remainder of $2^n - 1$ is 0 exactly in the rows $n = 3, 6, 9, 12, 15$. Now the real work is to prove that it stays like this for every $n$.`,
-        nudge: S`Why should the pattern continue beyond the table? What happens to the remainder when you go from $2^n$ to $2^{n+3}$?`,
-        check_code: CODE.multiplesOf3,
-        check_claim: '7 divides 2^n - 1 exactly when 3 divides n',
-      };
-    }
-    if (/even|odd/.test(c)) {
-      return {
-        verdict: 'inconsistent',
-        feedback: S`Look at the row $n = 2$: $2^2 - 1 = 3$, which is not divisible by 7, although 2 is even. Parity does not seem to be what matters.`,
-        nudge: 'In which rows exactly is the remainder of 2^n - 1 equal to 0?',
+        progress: '',
+        status: 'stuck',
+        hint:
+          level >= 3
+            ? S`Write the remainders of $2^1, 2^2, \dots, 2^9$ modulo 7 in one row. You only need to multiply the previous remainder by 2 and reduce.`
+            : 'Work with remainders instead of the huge numbers themselves – the method below explains why that is allowed.',
+        question: S`If $2^n$ leaves remainder 4, which remainder does $2^{n+1}$ leave?`,
+        level,
+        tool: level >= 3 ? 'skeleton' : 'method',
+        focus_step: null,
         ...noCheck,
       };
     }
+    if (looksComplete(input.progress, DEMO_STEPS)) {
+      return {
+        progress: 'You have a full attempt for both parts.',
+        status: 'complete',
+        hint: 'This looks complete – submit it for the full step-by-step check. Before you do: step (b) says an odd number cannot be divisible by 7. Look at the code check below.',
+        question: 'Can you find an odd multiple of 7?',
+        level: 1,
+        tool: 'none',
+        focus_step: input.progress.find((s) => /odd/.test(s.text))?.id ?? null,
+        check_code: CODE.oddMultiples,
+        check_claim: 'No odd number is divisible by 7',
+      };
+    }
+    const focus = input.progress.find((s) => /onjecture|\?/.test(s.text)) ?? input.progress[input.progress.length - 1];
+    const hints = [
+      'A pattern in six values is not a proof yet. Find a reason why the remainders must keep repeating for every n.',
+      S`Compare $2^{n+3}$ with $2^n$: $2^{n+3} = 8 \cdot 2^n$. What does multiplying by 8 do to a remainder modulo 7?`,
+      S`Since $8 \equiv 1 \pmod 7$, you get $2^{n+3} \equiv 2^n \pmod 7$ – every remainder comes back three steps later. Write that down as your key fact, then use it for both directions of (a) and for (b).`,
+    ];
+    const first = level === 1;
     return {
-      verdict: 'unclear',
-      feedback: 'I am not sure I understand the pattern you mean. Can you state it as a rule, like "7 divides 2^n - 1 exactly when n is …"?',
-      nudge: 'Look at the column (2^n - 1) mod 7: where are the zeros?',
-      ...noCheck,
+      progress: first
+        ? S`You computed the remainders $2, 4, 1, 2, 4, 1$ and stated a conjecture – the code check below tested it for 5000 values.`
+        : '',
+      status: first ? 'on_track' : 'stuck',
+      hint: hints[level - 1],
+      question: S`And for (b): which remainder would $2^n$ need for $7 \mid 2^n + 1$ – does it ever appear in your list?`,
+      level,
+      tool: level === 3 ? 'skeleton' : 'none',
+      focus_step: focus.id,
+      ...(first ? { check_code: CODE.multiplesOf3, check_claim: '7 divides 2^n - 1 exactly when 3 divides n' } : noCheck),
     };
   },
   steps: DEMO_STEPS,

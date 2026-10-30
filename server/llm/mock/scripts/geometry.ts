@@ -2,7 +2,7 @@
 // coach handles geometry: an interactive figure instead of a small-case table, and
 // claims tested on thousands of random quadrilaterals instead of small n.
 import type { FirstPassStep, Solution } from '../../../../shared/schemas';
-import { S, noCheck, type DemoScript } from './types';
+import { S, looksComplete, noCheck, type DemoScript } from './types';
 
 export const GEOMETRY_PROBLEM = S`Let $ABCD$ be a convex quadrilateral, and let $M$, $N$, $P$, $Q$ be the midpoints of the sides $AB$, $BC$, $CD$, $DA$.
 (a) Prove that $MNPQ$ is a parallelogram.
@@ -291,39 +291,82 @@ export const geometry: DemoScript = {
       ],
     },
   },
-  conjecture(input) {
-    const c = input.conjecture.toLowerCase();
-    if (/half|1\/2|0\.5|twice|double/.test(c)) {
+  progressSteps: [
+    S`Draw the diagonal $AC$.`,
+    S`In triangle $ABC$, $MN$ is a midline, so $MN \parallel AC$ and $MN = \tfrac12 AC$.`,
+    S`(b): no idea yet.`,
+  ],
+  nextHint(input, level) {
+    const note = input.note.toLowerCase();
+    if (input.progress.length === 0) {
+      if (input.history.length === 0) {
+        return {
+          progress: '',
+          status: 'not_started',
+          hint: 'Before proving anything, experiment: drag the corners of the quadrilateral below (or draw a few on paper) and watch MNPQ.',
+          question: 'Which sides of MNPQ always look parallel – and how do the two areas compare?',
+          level: 1,
+          tool: 'small_cases',
+          focus_step: null,
+          ...noCheck,
+        };
+      }
+      if (/understand|meaning|what does|verstehe/.test(note)) {
+        return {
+          progress: '',
+          status: 'stuck',
+          hint: 'Here is the problem in simple words. Then draw your own quadrilateral and mark the four midpoints.',
+          question: 'Does MNPQ look like a parallelogram in your drawing?',
+          level: 1,
+          tool: 'simple_words',
+          focus_step: null,
+          ...noCheck,
+        };
+      }
       return {
-        verdict: 'consistent',
-        feedback: 'Yes – however you drag, the area of MNPQ stays exactly half of the area of ABCD. The code below tested 2000 random quadrilaterals. Now the work is to see why.',
-        nudge: 'Which pieces of ABCD are not part of MNPQ? Do they look like anything you know?',
-        check_code: GEO_CODE.areaHalf,
-        check_claim: 'The area of MNPQ is half the area of ABCD',
-      };
-    }
-    if (/parallel|equal|same length|mn ?= ?pq/.test(c)) {
-      return {
-        verdict: 'partly',
-        feedback: 'Right: MN = PQ and NP = QM in every position, so opposite sides match. That is part (a). Did you also look at the two areas?',
-        nudge: 'Compare "area MNPQ" with "area ABCD" while you drag.',
-        check_code: GEO_CODE.parallelSides,
-        check_claim: 'Opposite sides of MNPQ are parallel',
-      };
-    }
-    if (/square|rectangle|rhomb/.test(c)) {
-      return {
-        verdict: 'inconsistent',
-        feedback: 'Drag D far to the right: MNPQ gets slanted, so it is not a rectangle or square in general.',
-        nudge: 'What stays the same, even when the shape gets slanted?',
+        progress: '',
+        status: 'stuck',
+        hint:
+          level >= 3
+            ? S`Draw the diagonal $AC$. Then $M$ and $N$ are midpoints of two sides of triangle $ABC$.`
+            : 'All four points are midpoints. Look for triangles in which two of them are the midpoints of two sides – the method below is the tool for that.',
+        question: 'Which segment could you draw into ABCD to create such triangles?',
+        level,
+        tool: level >= 3 ? 'skeleton' : 'method',
+        focus_step: null,
         ...noCheck,
       };
     }
+    if (looksComplete(input.progress, GEOMETRY_STEPS)) {
+      return {
+        progress: 'You have a full attempt for (a) and (b).',
+        status: 'complete',
+        hint: 'This looks complete – submit it for the full check. Before you do: is the area of a parallelogram really the product of two sides? Look at the code check below.',
+        question: 'What happens to the area when you squeeze a parallelogram flat but keep its sides?',
+        level: 1,
+        tool: 'none',
+        focus_step: input.progress.find((s) => /MN \\cdot NP/.test(s.text))?.id ?? null,
+        check_code: GEO_CODE.productOfSides,
+        check_claim: 'The area of MNPQ equals MN · NP',
+      };
+    }
+    const hints = [
+      S`Your diagonal $AC$ lies in a second triangle. Which one – and which two of the midpoints sit on its sides?`,
+      S`Look at triangle $ACD$: $Q$ and $P$ are the midpoints of $AD$ and $CD$. What does the midline theorem say there?`,
+      S`In triangle $ACD$, $QP$ is a midline too: $QP \parallel AC$ and $QP = \tfrac12 AC$. Put that next to your $MN$ – which quadrilateral has such a pair of sides? For (b), look at the four corner triangles that $MNPQ$ cuts off.`,
+    ];
+    const first = level === 1;
     return {
-      verdict: 'unclear',
-      feedback: 'I am not sure which property you mean. Try to state it as "however I drag, … stays …".',
-      nudge: 'Watch the six numbers next to the figure while you drag one corner.',
-      ...noCheck,
+      progress: first ? S`You drew the diagonal $AC$ and used the midline theorem in triangle $ABC$ – exactly the right start for (a).` : '',
+      status: first ? 'on_track' : 'stuck',
+      hint: hints[level - 1],
+      question: S`What do $MN$ and $QP$ have in common?`,
+      level,
+      tool: level === 3 ? 'skeleton' : 'none',
+      focus_step: input.progress[1]?.id ?? null,
+      ...(first
+        ? { check_code: GEO_CODE.parallelSides, check_claim: 'Opposite sides of MNPQ are parallel in every convex quadrilateral' }
+        : noCheck),
     };
   },
   steps: GEOMETRY_STEPS,

@@ -4,9 +4,9 @@
 import type {
   AskRequest,
   ChallengeRequest,
-  ConjectureRequest,
   DiscussRequest,
   EvaluateRequest,
+  NextHintRequest,
   RecognizeRequest,
   SolutionStep,
   TranscribeRequest,
@@ -76,10 +76,11 @@ export class MockProvider implements LLMProvider {
         return script.hints[5];
       case 'hint.6':
         return script.hints[6];
-      case 'conjecture':
-        return script.conjecture(req.input as ConjectureRequest);
+      case 'nexthint':
+        return nextHint(script, req.input as NextHintRequest);
       case 'recognize': {
-        const steps = (req.input as RecognizeRequest).intendedIdea ? script.ownVersionSteps : script.steps;
+        const r = req.input as RecognizeRequest;
+        const steps = r.partial ? script.progressSteps : r.intendedIdea ? script.ownVersionSteps : script.steps;
         return { steps: steps.map((text) => ({ text, unclear: false })), unreadable: [] };
       }
       case 'evaluate':
@@ -106,6 +107,16 @@ export class MockProvider implements LLMProvider {
         return challenge(script, req.input as ChallengeRequest);
     }
   }
+}
+
+/** Escalates like the real prompt asks: one level more concrete when nothing changed. */
+function nextHint(script: DemoScript, input: NextHintRequest) {
+  const same =
+    input.progress.length === input.previousProgress.length &&
+    input.progress.every((s, i) => squash(s.text) === squash(input.previousProgress[i].text));
+  const last = input.history[input.history.length - 1];
+  const level = (last && same ? Math.min(3, last.level + 1) : 1) as 1 | 2 | 3;
+  return script.nextHint(input, level);
 }
 
 function evaluate(script: DemoScript, input: EvaluateRequest): Evaluation {

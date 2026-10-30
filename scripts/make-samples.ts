@@ -90,6 +90,20 @@ const quadSketch = `<svg class="sketch" width="250" height="190" viewBox="0 0 25
   </g>
 </svg>`;
 
+// Unfinished work, photographed during the tip loop.
+const progressLines = [
+  '2<sup>1</sup> = 2, 2<sup>2</sup> = 4, 2<sup>3</sup> = 8, 2<sup>4</sup> = 16, 2<sup>5</sup> = 32, 2<sup>6</sup> = 64',
+  'Remainders mod 7:&nbsp; 2, 4, 1, 2, 4, 1',
+  '2<sup>n</sup> − 1 divisible by 7 for n = 3 and n = 6',
+  'Conjecture: 7 | 2<sup>n</sup> − 1 exactly when 3 | n ??',
+];
+
+const geometryProgressLines = [
+  'Draw the diagonal AC.',
+  'In △ABC, MN is a midline, so MN ∥ AC and MN = ½ AC.',
+  '(b): no idea yet …',
+];
+
 const geometrySolutionLines = [
   'Draw the diagonal AC.',
   'In △ABC, MN is a midline, so MN ∥ AC',
@@ -143,6 +157,8 @@ async function main() {
     ['geometry-problem.png', geometryProblemHtml],
     ['geometry-solution.png', handwritten(geometrySolutionLines, quadSketch)],
     ['geometry-own-version.png', handwritten(geometryOwnVersionLines)],
+    ['progress.png', handwritten(progressLines)],
+    ['geometry-progress.png', handwritten(geometryProgressLines, quadSketch)],
   ];
   for (const [name, html] of pages) {
     const file = path.join(work, name.replace('.png', '.html'));

@@ -8,7 +8,7 @@ import { FeedbackStage } from './attempt/FeedbackStage';
 import { SolutionStage } from './attempt/SolutionStage';
 import { CorrectionStage } from './correction/CorrectionStage';
 import { ProblemStage } from './problem/ProblemStage';
-import { UnderstandStage } from './understand/UnderstandStage';
+import { WorkStage } from './work/WorkStage';
 
 export interface StageProps {
   session: Session;
@@ -18,8 +18,8 @@ export interface StageProps {
 
 const TABS: { id: TabId; label: string; enabled: (s: Session) => boolean; locked: string }[] = [
   { id: 'problem', label: 'Problem', enabled: () => true, locked: '' },
-  { id: 'understand', label: 'Understand', enabled: (s) => !!s.problem?.confirmed, locked: 'Confirm the problem text first.' },
-  { id: 'solution', label: 'Your solution', enabled: (s) => !!s.problem?.confirmed, locked: 'Confirm the problem text first.' },
+  { id: 'work', label: 'Work on it', enabled: (s) => !!s.problem?.confirmed, locked: 'Confirm the problem text first.' },
+  { id: 'solution', label: 'Final solution', enabled: (s) => !!s.problem?.confirmed, locked: 'Confirm the problem text first.' },
   { id: 'feedback', label: 'Feedback', enabled: (s) => !!s.attempt?.confirmed, locked: 'Upload your solution and confirm how it was read first.' },
   { id: 'ask', label: 'Ask with pen', enabled: (s) => !!s.attempt?.assessment, locked: 'Get feedback on your solution first.' },
   { id: 'fix', label: 'Fix your approach', enabled: (s) => !!s.attempt?.assessment, locked: 'Get feedback on your solution first.' },
@@ -67,7 +67,7 @@ export function SessionView({ id, tab }: { id: string; tab: TabId }) {
       ) : (
         <div className="stage" data-testid={`stage-${tab}`}>
           {tab === 'problem' && <ProblemStage {...props} />}
-          {tab === 'understand' && <UnderstandStage {...props} />}
+          {tab === 'work' && <WorkStage {...props} />}
           {tab === 'solution' && <SolutionStage {...props} />}
           {tab === 'feedback' && <FeedbackStage {...props} />}
           {tab === 'ask' && <AnnotateStage {...props} />}

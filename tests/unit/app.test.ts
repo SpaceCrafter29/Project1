@@ -99,3 +99,39 @@ describe('geometry demo over the API', () => {
     expect(vectors.solution.figure_code).toContain('geo.mid');
   });
 });
+
+describe('tip loop over the API', () => {
+  const ask = async (body: object) => (await post('nexthint', { problem: DEMO_PROBLEM, previousProgress: [], note: '', history: [], ...body })).json();
+
+  it('starts with one tip and gets more concrete while the student makes no progress', async () => {
+    const { numberTheory } = await import('../../server/llm/mock/scripts/numberTheory');
+    const opening = await ask({ progress: [] });
+    expect(opening).toMatchObject({ status: 'not_started', level: 1, tool: 'small_cases' });
+
+    const progress = numberTheory.progressSteps.map((text, i) => ({ id: `s${i + 1}`, text }));
+    const first = await ask({ progress, history: [{ hint: opening.hint, level: 1 }] });
+    expect(first).toMatchObject({ level: 1, status: 'on_track', focus_step: 's4' });
+    expect(first.check_code).toBeTruthy();
+
+    const history = [
+      { hint: opening.hint, level: 1 },
+      { hint: first.hint, level: 1 },
+    ];
+    const second = await ask({ progress, previousProgress: progress, history, note: 'still stuck' });
+    expect(second).toMatchObject({ level: 2, status: 'stuck', check_code: null });
+    const third = await ask({ progress, previousProgress: progress, history: [...history, { hint: second.hint, level: 2 }] });
+    expect(third).toMatchObject({ level: 3, tool: 'skeleton' });
+  });
+
+  it('recognizes a complete attempt and points at a claim to double-check', async () => {
+    const complete = await ask({ progress: steps, history: [{ hint: 'x', level: 1 }] });
+    expect(complete).toMatchObject({ status: 'complete', focus_step: 's5' });
+    expect(complete.check_claim).toBe('No odd number is divisible by 7');
+  });
+
+  it('reads unfinished work as progress', async () => {
+    const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const read = await (await post('recognize', { problem: DEMO_PROBLEM, images: [pixel], partial: true })).json();
+    expect(read.steps.at(-1).text).toContain('Conjecture');
+  });
+});

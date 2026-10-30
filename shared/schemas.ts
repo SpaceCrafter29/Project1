@@ -33,7 +33,7 @@ export const TranscriptionSchema = z.object({
 export type Transcription = z.infer<typeof TranscriptionSchema>;
 
 // ---------------------------------------------------------------------------
-// 2. Understanding stages
+// 2. Coaching: personalized tips, and the tools they can attach
 
 export const SimpleWordsSchema = z.object({
   explanation: text,
@@ -58,14 +58,25 @@ export const SmallCasesSchema = z.object({
 });
 export type SmallCases = z.infer<typeof SmallCasesSchema>;
 
-export const ConjectureFeedbackSchema = z.object({
-  verdict: looseEnum(['consistent', 'partly', 'inconsistent', 'unclear'] as const),
-  feedback: text,
-  nudge: optionalText,
+/** Tools the coach can attach to a tip (they correspond to the hint stages below). */
+export const HINT_TOOLS = ['none', 'simple_words', 'given_wanted', 'small_cases', 'method', 'skeleton'] as const;
+export type HintTool = (typeof HINT_TOOLS)[number];
+
+/** One personalized tip, based on the student's photographed progress. */
+export const NextHintSchema = z.object({
+  /** What the student has already achieved, acknowledged concretely (empty at the start). */
+  progress: optionalText,
+  status: looseEnum(['not_started', 'on_track', 'stuck', 'off_track', 'complete'] as const).catch('on_track'),
+  hint: text,
+  question: optionalText,
+  /** 1 = direction, 2 = concrete idea, 3 = the key insight of the next step, stated plainly. */
+  level: z.coerce.number().int().min(1).max(3).catch(1),
+  tool: looseEnum(HINT_TOOLS).catch('none'),
+  focus_step: z.coerce.string().nullish().transform((v) => (v && v !== 'null' ? v : null)),
   check_code: optionalCode,
   check_claim: optionalText,
 });
-export type ConjectureFeedback = z.infer<typeof ConjectureFeedbackSchema>;
+export type NextHint = z.infer<typeof NextHintSchema>;
 
 export const MethodHintSchema = z.object({
   method: text,

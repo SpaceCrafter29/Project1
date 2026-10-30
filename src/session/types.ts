@@ -4,11 +4,11 @@ import type { ChatTurn, DevelopResponse, EvaluateResponse, SolutionStep } from '
 import type { CheckOutcome, Table } from '../../shared/codecheck';
 import type {
   Challenge,
-  ConjectureFeedback,
   CorrectionApproach,
   GivenWanted,
   Idea,
   MethodHint,
+  NextHint,
   SimpleWords,
   Skeleton,
   SmallCases,
@@ -30,19 +30,30 @@ export interface Problem {
 export interface CheckRun {
   claim: string;
   code: string;
-  source: 'evaluation' | 'discussion' | 'conjecture' | 'solver' | 'verifier' | 'challenge';
+  source: 'evaluation' | 'discussion' | 'tip' | 'solver' | 'verifier' | 'challenge';
   outcome: CheckOutcome;
 }
 
+/** Tools a tip can attach, loaded once and kept (spec: Hints). */
 export interface Hints {
-  /** Highest revealed stage, 0 = none. Stages are revealed in order. */
-  revealed: number;
   simple?: SimpleWords;
   givenWanted?: GivenWanted;
   smallCases?: SmallCases & { table?: Table; tableError?: string };
-  conjecture?: { text: string; feedback?: ConjectureFeedback; check?: CheckRun };
   method?: MethodHint;
   skeleton?: Skeleton;
+}
+
+/** One turn of the tip loop: the student's photographed progress and the tip it got. */
+export interface CoachingRound {
+  id: string;
+  createdAt: number;
+  /** Photos of the progress (none for the first tip or a tip asked without a photo). */
+  images: string[];
+  /** The progress as read and confirmed by the student. */
+  steps: SolutionStep[];
+  note: string;
+  hint: NextHint;
+  check?: CheckRun;
 }
 
 export interface StepReview {
@@ -121,6 +132,8 @@ export interface Session {
   updatedAt: number;
   problem: Problem | null;
   hints: Hints;
+  /** The tip loop, oldest first (missing in sessions created before it existed). */
+  coaching?: CoachingRound[];
   attempt: Attempt | null;
   pastAttempts: Attempt[];
   correction: Correction | null;

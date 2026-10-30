@@ -2,7 +2,6 @@
 import type {
   AskReply,
   Challenge,
-  ConjectureFeedback,
   Correction,
   DiscussReply,
   Evaluation,
@@ -10,6 +9,7 @@ import type {
   GivenWanted,
   Idea,
   MethodHint,
+  NextHint,
   Recognition,
   Refutation,
   SimpleWords,
@@ -62,17 +62,24 @@ export interface HintResponseMap {
   6: Skeleton;
 }
 
-export interface ConjectureRequest {
+export interface NextHintRequest {
   problem: string;
-  conjecture: string;
-  /** Small-case table computed in the browser, if any. */
-  table?: { columns: string[]; rows: (string | number)[][] };
+  /** The student's confirmed current work (from their latest photo); empty if they have nothing yet. */
+  progress: SolutionStep[];
+  /** Their work at the previous tip, to tell whether they got further. */
+  previousProgress: SolutionStep[];
+  /** Optional words from the student, e.g. where they are stuck. */
+  note: string;
+  /** Tips given so far, oldest first. */
+  history: { hint: string; level: number }[];
 }
-export type ConjectureResponse = ConjectureFeedback;
+export type NextHintResponse = NextHint;
 
 export interface RecognizeRequest {
   problem: string;
   images: string[];
+  /** Unfinished work photographed during the tip loop (scratch work allowed). */
+  partial?: boolean;
   /** Set when the student submits their own version of an alternative approach. */
   intendedIdea?: string;
 }

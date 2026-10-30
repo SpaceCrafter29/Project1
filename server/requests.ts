@@ -16,14 +16,14 @@ const idea = z.object({ one_liner: z.string().min(1), principle: z.string().min(
 export const requestSchemas = {
   transcribe: z.object({ images }),
   hint: z.object({ problem, stage: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(6)]) }),
-  conjecture: z.object({
+  nexthint: z.object({
     problem,
-    conjecture: z.string().trim().min(1).max(2_000),
-    table: z
-      .object({ columns: z.array(z.string()), rows: z.array(z.array(z.union([z.string(), z.number()]))) })
-      .optional(),
+    progress: z.array(step).max(80),
+    previousProgress: z.array(step).max(80).default([]),
+    note: z.string().max(2_000).default(''),
+    history: z.array(z.object({ hint: z.string().max(5_000), level: z.number().int().min(1).max(3) })).max(30).default([]),
   }),
-  recognize: z.object({ problem, images, intendedIdea: z.string().max(1_000).optional() }),
+  recognize: z.object({ problem, images, partial: z.boolean().optional(), intendedIdea: z.string().max(1_000).optional() }),
   evaluate: z.object({ problem, steps, intendedIdea: z.string().max(1_000).optional() }),
   discuss: z.object({
     problem,

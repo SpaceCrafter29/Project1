@@ -23,7 +23,7 @@ export function createApp(coach: Coach, info: ServerConfig): Express {
   const handlers: { [K in Endpoint]: (body: never) => Promise<unknown> } = {
     transcribe: (b) => coach.transcribe(b),
     hint: (b) => coach.hint(b),
-    conjecture: (b) => coach.conjecture(b),
+    nexthint: (b) => coach.nextHint(b),
     recognize: (b) => coach.recognize(b),
     evaluate: (b) => coach.evaluate(b),
     discuss: (b) => coach.discuss(b),

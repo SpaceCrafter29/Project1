@@ -17,7 +17,10 @@ import {
 } from './common';
 
 export function recognizePrompt(input: RecognizeRequest, models: Models): CompletionRequest {
-  const instruction = `The image(s) show the student's handwritten solution to the problem above (possibly several pages, in order). Transcribe it faithfully as a list of steps.
+  const what = input.partial
+    ? "the student's unfinished work on the problem above (computations, sketches, conjectures, attempts – possibly several pages, in order)"
+    : "the student's handwritten solution to the problem above (possibly several pages, in order)";
+  const instruction = `The image(s) show ${what}. Transcribe it faithfully as a list of steps.
 - One step = one claim, computation or conclusion, in the student's order. Keep the student's wording and notation; do not fix mistakes, do not fill gaps, do not add steps, do not judge.
 - Formulas in LaTeX ($...$). Crossed-out text is omitted.
 - Set "unclear": true for a step you could not read with confidence, and list illegible fragments in "unreadable".

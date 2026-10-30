@@ -45,28 +45,34 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await expect(page.getByTestId('problem-text')).toHaveValue(/divisible by \$7\$/);
   await shot(page, '02-confirm-problem');
   await page.getByTestId('confirm-problem-btn').click();
-  await expect(page).toHaveURL(/\/understand$/);
+  await expect(page).toHaveURL(/\/work$/);
 
-  // 2. Understanding stages, strictly in order
-  await expect(page.getByTestId('reveal-2')).toBeDisabled();
-  await page.getByTestId('reveal-1').click();
-  await expect(page.getByTestId('hint-1')).toContainText('positive integer');
-  await page.getByTestId('reveal-2').click();
-  await expect(page.getByTestId('hint-2')).toContainText('Wanted');
-  await page.getByTestId('reveal-3').click();
-  const table = page.getByTestId('cases-table');
-  await expect(table.locator('tbody tr')).toHaveCount(15);
-  await expect(table.locator('tbody tr').nth(2)).toContainText('8');
-  await page.getByTestId('reveal-4').click();
-  await page.getByTestId('conjecture-input').fill('7 divides 2^n - 1 exactly when n is a multiple of 3');
-  await page.getByTestId('check-conjecture').click();
-  await expect(page.getByTestId('conjecture-feedback')).toContainText('consistent');
-  await expect(page.getByTestId('conjecture-feedback').getByTestId('check-result')).toContainText('Holds in all tested cases');
-  await page.getByTestId('reveal-5').click();
-  await expect(page.getByTestId('hint-5')).toContainText('Modular arithmetic');
-  await page.getByTestId('reveal-6').click();
-  await expect(page.getByTestId('hint-6')).toContainText('Key fact');
-  await shot(page, '03-understand');
+  // 2. The tip loop: one tip first (here with a small-case table computed by code) …
+  const tip1 = page.getByTestId('tip-1');
+  await expect(tip1).toContainText('only care about the remainder');
+  await expect(tip1.getByTestId('cases-table').locator('tbody tr')).toHaveCount(15);
+  await expect(page.getByTestId('tip-2')).toHaveCount(0);
+
+  // … then the student photographs their progress, confirms the reading, and gets a tip for exactly that.
+  await page.getByTestId('progress-images-file').setInputFiles(path.join(samples, 'progress.png'));
+  await page.getByTestId('read-progress').click();
+  await expect(page.getByTestId('progress-confirm').locator('textarea')).toHaveCount(4);
+  await page.getByTestId('next-tip').click();
+  const tip2 = page.getByTestId('tip-2');
+  await expect(tip2).toContainText('You computed the remainders');
+  await expect(tip2).toContainText('A pattern in six values is not a proof yet');
+  await expect(tip2).toContainText('a direction');
+  await expect(tip2.getByTestId('check-result')).toContainText('Holds in all tested cases');
+  await expect(tip2.locator('.tip-focus')).toContainText('Conjecture');
+
+  // Still stuck at the same point: the next tip gets more concrete.
+  await page.getByTestId('tip-note').fill('I still do not see why it repeats.');
+  await page.getByTestId('tip-without-photo').click();
+  const tip3 = page.getByTestId('tip-3');
+  await expect(tip3).toContainText('more concrete');
+  await expect(tip3).toContainText('What does multiplying by 8 do');
+  await expect(tip3).toContainText('I still do not see why it repeats.');
+  await shot(page, '03-tips');
 
   // 3./4. Solution photo + recognition confirmation
   await page.getByTestId('go-solve').click();
@@ -259,9 +265,8 @@ test('geometry: interactive figure, counterexamples on random shapes, figures in
   await page.getByTestId('confirm-problem-btn').click();
   await expect(page.getByTestId('problem-card').locator('img')).toBeVisible();
 
-  // Stage 3 is an interactive figure instead of a table.
-  for (const n of [1, 2, 3]) await page.getByTestId(`reveal-${n}`).click();
-  const figure = page.getByTestId('figure');
+  // The first tip comes with an interactive figure instead of a table.
+  const figure = page.getByTestId('tip-1').getByTestId('figure');
   await expect(figure.getByTestId('measures')).toBeVisible();
   const before = await measures(figure);
   expect(before['area MNPQ'] * 2).toBeCloseTo(before['area ABCD'], 2);
@@ -279,11 +284,12 @@ test('geometry: interactive figure, counterexamples on random shapes, figures in
   expect(after.MN).toBeCloseTo(after.PQ, 3);
   await shot(page, 'geo-03-figure');
 
-  await page.getByTestId('reveal-4').click();
-  await page.getByTestId('conjecture-input').fill('The area of MNPQ is always half of the area of ABCD');
-  await page.getByTestId('check-conjecture').click();
-  await expect(page.getByTestId('conjecture-feedback')).toContainText('consistent');
-  await expect(page.getByTestId('conjecture-feedback').getByTestId('check-result')).toContainText('Holds');
+  // A progress photo with a sketch: the tip builds on the student's own midline idea.
+  await page.getByTestId('progress-images-file').setInputFiles(path.join(samples, 'geometry-progress.png'));
+  await page.getByTestId('read-progress').click();
+  await page.getByTestId('next-tip').click();
+  await expect(page.getByTestId('tip-2')).toContainText('lies in a second triangle');
+  await expect(page.getByTestId('tip-2').getByTestId('check-result')).toContainText('Holds');
 
   // Handwritten solution with a sketch: two false area formulas, refuted on random quadrilaterals.
   await page.getByTestId('go-solve').click();

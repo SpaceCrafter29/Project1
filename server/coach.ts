@@ -5,8 +5,6 @@ import type {
   AskResponse,
   ChallengeRequest,
   ChallengeResponse,
-  ConjectureRequest,
-  ConjectureResponse,
   CorrectRequest,
   CorrectResponse,
   DevelopRequest,
@@ -18,6 +16,8 @@ import type {
   EvaluatedStep,
   HintRequest,
   HintResponse,
+  NextHintRequest,
+  NextHintResponse,
   ProposeRequest,
   ProposeResponse,
   RecognizeRequest,
@@ -30,13 +30,13 @@ import type {
 import {
   AskReplySchema,
   ChallengeSchema,
-  ConjectureFeedbackSchema,
   CorrectionSchema,
   DiscussReplySchema,
   EvaluationSchema,
   GivenWantedSchema,
   IdeasSchema,
   MethodHintSchema,
+  NextHintSchema,
   RecognitionSchema,
   RefutationSchema,
   SimpleWordsSchema,
@@ -54,7 +54,7 @@ import type { CompletionRequest, LLMProvider } from './llm/types';
 import { evaluatePrompt, discussPrompt, recognizePrompt, refutePrompt } from './prompts/attempt';
 import { askPrompt, challengePrompt, correctPrompt, proposePrompt, solvePrompt, verifyPrompt } from './prompts/coaching';
 import type { Models } from './prompts/common';
-import { conjecturePrompt, hintPrompt, transcribePrompt } from './prompts/problem';
+import { hintPrompt, nextHintPrompt, transcribePrompt } from './prompts/problem';
 
 export class UsageTracker implements UsageSink {
   private totals: Usage = { calls: 0, promptTokens: 0, completionTokens: 0 };
@@ -110,8 +110,10 @@ export class Coach {
     return this.call(hintPrompt(req.problem, req.stage, this.models), HINT_SCHEMAS[req.stage]);
   }
 
-  conjecture(req: ConjectureRequest): Promise<ConjectureResponse> {
-    return this.call(conjecturePrompt(req, this.models), ConjectureFeedbackSchema);
+  /** One personalized tip for the student's photographed progress. */
+  async nextHint(req: NextHintRequest): Promise<NextHintResponse> {
+    const hint = await this.call(nextHintPrompt(req, this.models), NextHintSchema);
+    return { ...hint, focus_step: hint.focus_step ? resolveStepId(hint.focus_step, req.progress) : null };
   }
 
   recognize(req: RecognizeRequest): Promise<RecognizeResponse> {
