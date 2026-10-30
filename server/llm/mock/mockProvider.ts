@@ -30,8 +30,9 @@ function scriptFor(problem: string | undefined): DemoScript {
 export function imageSize(dataUrl: string): { width: number; height: number } | null {
   const binary = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
   const bytes = new DataView(Uint8Array.from(binary, (c) => c.charCodeAt(0)).buffer);
-  if (bytes.byteLength < 24) return null;
-  if (bytes.getUint32(0) === 0x89504e47) return { width: bytes.getUint32(16), height: bytes.getUint32(20) };
+  if (bytes.byteLength >= 24 && bytes.getUint32(0) === 0x89504e47) {
+    return { width: bytes.getUint32(16), height: bytes.getUint32(20) };
+  }
   for (let i = 2; i + 9 < bytes.byteLength; ) {
     if (bytes.getUint8(i) !== 0xff) return null;
     const marker = bytes.getUint8(i + 1);
