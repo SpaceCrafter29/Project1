@@ -18,21 +18,34 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <a className="brand" href={href({ name: 'home' })}>
-          <img src="/favicon.svg" alt="" width={28} height={28} />
+          <BrandDoodle />
           <span>Olympiad Coach</span>
         </a>
         <nav>
-          <a href={href({ name: 'home' })}>My problems</a>
+          <a href={href({ name: 'home' })}>my problems →</a>
         </nav>
       </header>
       {isDemo(config) && (
-        <div className="demo-banner" data-testid="demo-banner">
-          Demo mode: no API key is configured, so the coach answers with a scripted example (IMO 1964, Problem 1).
-        </div>
+        <aside className="demo-banner sticky-note" data-testid="demo-banner">
+          <strong>Demo mode</strong> – no API key yet, so the coach answers with scripted examples: a number theory problem
+          (IMO 1964/1) and a geometry problem. Use the “Sample” buttons.
+        </aside>
       )}
       <main className="main">{route.name === 'home' ? <Home /> : <SessionView key={route.id} id={route.id} tab={route.tab} />}</main>
       <Footer />
     </div>
+  );
+}
+
+/** Compass-and-triangle doodle used as the logo. */
+function BrandDoodle() {
+  return (
+    <svg className="brand-doodle" viewBox="0 0 48 48" width="40" height="40" aria-hidden>
+      <path d="M8 40 L24 8 L40 40 Z" />
+      <path d="M24 8 L16 40 M24 8 L33 40" className="thin" />
+      <circle cx="24" cy="27" r="9" className="thin" />
+      <circle cx="24" cy="8" r="2.4" className="dot" />
+    </svg>
   );
 }
 
@@ -60,7 +73,9 @@ function Home() {
   return (
     <div className="home">
       <section className="hero">
-        <h1>Learn to find the proof yourself.</h1>
+        <h1>
+          Learn to find the <span className="marker">proof</span> yourself.
+        </h1>
         <p>
           Photograph an olympiad problem, get hints one stage at a time, solve it on paper, and let the coach check
           your own solution step by step – without giving the answer away.

@@ -6,6 +6,8 @@ Built for the Meta Global AI Developer Hackathon (submission deadline 4 Nov 2026
 
 ![Feedback on a handwritten solution](docs/screenshots/05-feedback.png)
 
+The interface is a math notebook: white squared paper, handwriting (Comic Sans, with the bundled Comic Neue as a fallback), gray ink and yellow accents. Verdicts are teacher's marks in the margin (✓ valid, ? gap, ✗ error, ~ unclear), code checks look like stamps, and the score is circled like a grade.
+
 ## Principles
 
 - **Paper, not keyboard.** Problems and solutions come in as photos/screenshots; thinking happens with a pen.
@@ -28,6 +30,19 @@ Built for the Meta Global AI Developer Hackathon (submission deadline 4 Nov 2026
 | 7 | **Other approaches** | 2–4 one-line ideas with the principle behind each. Opening one develops a full solution, which is independently verified and tested by code first. Ask about any step (with the pen or a button), challenge a step ("That's not right?"), or write your own version with the idea and have it graded. |
 
 A permanent footer reminds you: *The AI can make mistakes. Check steps that look odd to you, and ask.*
+
+## Geometry
+
+Geometry gets the same coaching, with figures instead of number tables:
+
+- **Reading the problem:** the transcription also describes the figure in words (points, lines, marked lengths and angles). You confirm that description like the text, and the original image stays next to the problem.
+- **Small cases become an experiment:** stage 3 draws the configuration as an interactive figure on squared paper. The model writes construction code from draggable points, which re-runs in the sandbox on every drag. Live measurements (lengths, angles, areas) let you see what stays the same.
+- **Claims are tested on random shapes:** checks use a small geometry library (`geo`: midpoints, intersections, feet of perpendiculars, circumcenter, areas, `collinear`/`concyclic` tests, random triangles and convex quadrilaterals, …). For example, "the area of MNPQ is MN · NP" is refuted with a concrete quadrilateral, out of 2000 random ones tested.
+- **Alternative solutions** for geometry come with their own figure showing the construction they use.
+
+The helpers live in [`shared/geo.ts`](shared/geo.ts), and the figure format is documented next to `interpretFigure` in [`shared/codecheck.ts`](shared/codecheck.ts).
+
+![Interactive figure in the hints](docs/screenshots/geo-03-figure.png)
 
 ## How verification works
 
@@ -74,9 +89,14 @@ npm install
 npm run dev          # http://localhost:8787
 ```
 
-Without an API key the app runs in **demo mode**: a scripted coach for IMO 1964 Problem 1 that exercises every path, so the whole app can be tried and tested offline. Use the "Use sample …" buttons to load the sample photos.
+Without an API key the app runs in **demo mode**: a scripted coach that exercises every path, so the whole app can be tried and tested offline. There are two scripted problems:
 
-The demo shows:
+- **Number theory:** IMO 1964 Problem 1.
+- **Geometry:** the midpoint quadrilateral, with its area.
+
+Use the "Sample: …" buttons to load the sample photos. The demo cannot read images, so for your own photos it picks a script by image shape: wide screenshots get number theory, everything else gets geometry.
+
+The number theory demo shows:
 
 - a confirmed gap;
 - a critique that the independent check rejects (shown as *unclear*; the coach concedes in discussion);
@@ -84,6 +104,8 @@ The demo shows:
 - a verified alternative;
 - a logic-only alternative;
 - an alternative that code catches and hides.
+
+The geometry demo shows the interactive figure, two false area formulas refuted on random quadrilaterals, a withdrawn critique, and a vector solution with its own figure.
 
 ### Using the Meta Model API
 
@@ -134,7 +156,8 @@ npm start            # serves dist/ and the API on PORT
 npm test             # vitest: verdict/alternative logic, JSON handling, pipelines,
                      # Meta API client against a fake OpenAI-compatible server
 npm run test:e2e     # Playwright: full flow in demo mode (real browser, worker, IndexedDB),
-                     # mobile layout, sandbox isolation; writes docs/screenshots/
+                     # geometry flow with dragging, mobile layout, sandbox isolation;
+                     # writes docs/screenshots/
 npm run typecheck
 ```
 
@@ -146,15 +169,16 @@ shared/        contracts used by both sides
   api.ts           request/response types
   verdict.ts       critique + refutation + code check → final verdict, score range
   alternatives.ts  verification + checks + consistency → show / mark / hide
-  codecheck.ts     executing and interpreting model-written checks
+  codecheck.ts     executing and interpreting model-written checks and figures
+  geo.ts           geometry helpers available to all sandboxed code
 server/        Express + TypeScript (tsx), Vite middleware in dev
   prompts/         one prompt builder per task, strict JSON formats
   coach.ts         pipelines: evaluate→refute, solve→verify→repair, …
   llm/             OpenAI-compatible Meta provider, JSON extraction + one repair round,
-                   scripted demo provider (llm/mock)
+                   scripted demo provider with one script per problem (llm/mock/scripts)
 src/           React 19 client
   features/        one folder per screen
-  components/      MathText (KaTeX), PenCanvas, MarkableSteps, ChatThread, ImageInput, …
+  components/      MathText (KaTeX), GeoFigure, PenCanvas, MarkableSteps, ChatThread, ImageInput, …
   workers/         sandbox.worker.ts
   lib/storage.ts   IndexedDB behind a SessionStore interface (swap in Firestore later)
 ```

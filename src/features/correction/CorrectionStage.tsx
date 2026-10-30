@@ -4,6 +4,7 @@ import { Button, Card, ErrorBox, Pill, Spinner, StatusBadge } from '../../compon
 import { api, errorMessage } from '../../lib/api';
 import { finalVerdict } from '../attempt/assess';
 import type { StageProps } from '../SessionView';
+import { problemText } from '../../session/problem';
 
 const WORKS = {
   yes: { label: 'Yes, it carries', tone: 'good' },
@@ -13,7 +14,7 @@ const WORKS = {
 
 export function CorrectionStage({ session, update, go }: StageProps) {
   const attempt = session.attempt!;
-  const problem = session.problem!.transcript;
+  const problem = problemText(session.problem!);
   const correction = session.correction;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

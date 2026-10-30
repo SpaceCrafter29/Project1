@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ImageInput } from '../../components/ImageInput';
 import { MathText } from '../../components/MathText';
-import { Button, Card, ErrorBox } from '../../components/ui';
+import { Button, Card, ErrorBox, Taped } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
 import type { Attempt } from '../../session/types';
 import { newAttempt, type AttemptUpdater } from './assess';
@@ -55,7 +55,7 @@ export function AttemptCapture({
           onChange={setImages}
           max={6}
           testId="attempt-images"
-          sample={sampleUrl ? { label: 'Use sample solution', url: sampleUrl } : undefined}
+          samples={sampleUrl ? [{ label: 'Use sample solution', url: sampleUrl }] : []}
         />
         {error && <ErrorBox message={error} onRetry={() => void recognize()} />}
         <div className="actions">
@@ -83,7 +83,9 @@ export function AttemptCapture({
       <div className="split">
         <div className="split-images sticky">
           {attempt.images.map((src, i) => (
-            <img key={i} src={src} alt={`Solution page ${i + 1}`} className="source-image" />
+            <Taped key={i}>
+              <img src={src} alt={`Solution page ${i + 1}`} className="source-image" />
+            </Taped>
           ))}
         </div>
         <ol className="step-editor">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { executeCode, interpretCheck, interpretTable, prepareCode, toPlain } from '../../shared/codecheck';
-import { CODE } from '../../server/llm/mock/demo';
+import { CODE } from '../../server/llm/mock/scripts/numberTheory';
 
 const run = (code: string) => ({ status: 'ok' as const, value: toPlain(executeCode(code)), ms: 1 });
 

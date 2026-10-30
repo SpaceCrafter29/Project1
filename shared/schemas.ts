@@ -14,6 +14,11 @@ const text = z.string().trim();
 const optionalText = z.string().trim().nullish().transform((v) => v ?? '');
 const optionalCode = z.string().trim().nullish().transform((v) => (v ? v : null));
 const points = z.coerce.number().min(0).max(7);
+/** Named draggable points of a figure, e.g. {"A": [0, 0], "B": [4, 1]}. */
+const freePoints = z
+  .record(z.string(), z.tuple([z.coerce.number(), z.coerce.number()]))
+  .nullish()
+  .transform((v) => v ?? {});
 
 // ---------------------------------------------------------------------------
 // 1. Problem transcription
@@ -21,6 +26,8 @@ const points = z.coerce.number().min(0).max(7);
 export const TranscriptionSchema = z.object({
   text,
   topic: optionalText,
+  /** Description of a figure in the image (geometry), empty if there is none. */
+  figure: optionalText,
   uncertain: z.array(text).default([]),
 });
 export type Transcription = z.infer<typeof TranscriptionSchema>;
@@ -43,7 +50,10 @@ export type GivenWanted = z.infer<typeof GivenWantedSchema>;
 
 export const SmallCasesSchema = z.object({
   intro: text,
+  /** "table" for small cases, "figure" for an interactive geometry construction. */
+  kind: looseEnum(['table', 'figure'] as const).catch('table'),
   code: text,
+  free_points: freePoints,
   what_to_look_for: optionalText,
 });
 export type SmallCases = z.infer<typeof SmallCasesSchema>;
@@ -168,6 +178,9 @@ export const SolutionSchema = z.object({
   why_it_works: text,
   when_to_try: text,
   checks: z.array(CheckSpecSchema).default([]),
+  /** Optional interactive figure for geometric solutions. */
+  figure_code: optionalCode,
+  free_points: freePoints,
 });
 export type Solution = z.infer<typeof SolutionSchema>;
 

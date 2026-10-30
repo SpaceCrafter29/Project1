@@ -1,13 +1,15 @@
 import { MathText } from '../../components/MathText';
 import { Button, Card } from '../../components/ui';
-import { isDemo, useConfig } from '../../lib/config';
+import { demoSample, isDemo, useConfig } from '../../lib/config';
 import type { StageProps } from '../SessionView';
+import { ProblemCard } from '../problem/ProblemCard';
 import { AttemptCapture } from './AttemptCapture';
 import type { AttemptUpdater } from './assess';
+import { problemText } from '../../session/problem';
 
 export function SolutionStage({ session, update, go }: StageProps) {
   const config = useConfig();
-  const problem = session.problem!.transcript;
+  const problem = problemText(session.problem!);
   const attempt = session.attempt;
   const updateAttempt: AttemptUpdater = (fn) =>
     update((d) => {
@@ -51,9 +53,7 @@ export function SolutionStage({ session, update, go }: StageProps) {
 
   return (
     <div className="stack">
-      <Card title="Problem">
-        <MathText text={problem} block className="problem-text" />
-      </Card>
+      <ProblemCard problem={session.problem!} />
       <AttemptCapture
         problem={problem}
         attempt={attempt}
@@ -69,7 +69,7 @@ export function SolutionStage({ session, update, go }: StageProps) {
             d.attempt = null;
           })
         }
-        sampleUrl={isDemo(config) ? '/samples/solution.png' : undefined}
+        sampleUrl={isDemo(config) ? demoSample('solution', session.problem!.topic) : undefined}
       />
     </div>
   );

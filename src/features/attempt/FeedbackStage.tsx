@@ -4,6 +4,7 @@ import { errorMessage } from '../../lib/api';
 import type { StageProps } from '../SessionView';
 import { AssessmentView } from './AssessmentView';
 import { assessAttempt, type AttemptUpdater } from './assess';
+import { problemText } from '../../session/problem';
 
 const PROGRESS = [
   'Reading each step…',
@@ -13,7 +14,7 @@ const PROGRESS = [
 
 export function FeedbackStage({ session, update, go }: StageProps) {
   const attempt = session.attempt!;
-  const problem = session.problem!.transcript;
+  const problem = problemText(session.problem!);
   const updateAttempt: AttemptUpdater = (fn) =>
     update((d) => {
       if (d.attempt) fn(d.attempt);

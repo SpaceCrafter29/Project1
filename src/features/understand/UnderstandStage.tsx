@@ -1,27 +1,33 @@
 import { useState, type ReactNode } from 'react';
 import type { HintStage } from '../../../shared/api';
+import type { Figure } from '../../../shared/codecheck';
 import { CheckResult } from '../../components/CheckResult';
+import { GeoFigure } from '../../components/GeoFigure';
 import { MathText } from '../../components/MathText';
 import { Button, Card, Details, ErrorBox, Pill } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
 import { runCheck, runTable } from '../../lib/sandbox';
 import type { Hints } from '../../session/types';
 import type { StageProps } from '../SessionView';
+import { ProblemCard } from '../problem/ProblemCard';
+import { problemText } from '../../session/problem';
 
 const STAGES = [
   { n: 1, title: 'In simple words', teaser: 'The problem restated plainly, with technical terms explained.' },
   { n: 2, title: 'Given / wanted', teaser: 'A short overview of what you know and what you need.' },
-  { n: 3, title: 'Small cases', teaser: 'A table of the first cases, computed by code.' },
+  { n: 3, title: 'Small cases & experiments', teaser: 'The first cases computed by code – or a figure to drag around.' },
   { n: 4, title: 'Your conjecture', teaser: 'What pattern do you notice? Write it down and get feedback.' },
   { n: 5, title: 'Method hint', teaser: 'A general method that could work here.' },
   { n: 6, title: 'Proof skeleton', teaser: 'The structure of a proof – without content.' },
 ] as const;
 
 export function UnderstandStage({ session, update, go }: StageProps) {
-  const problem = session.problem!.transcript;
+  const problem = problemText(session.problem!);
   const hints = session.hints;
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<{ stage: number; message: string } | null>(null);
+  // Latest measurements of the interactive figure, sent along with the conjecture.
+  const [measures, setMeasures] = useState<Figure['measures']>([]);
 
   const reveal = async (n: number) => {
     setBusy(n);
@@ -36,7 +42,8 @@ export function UnderstandStage({ session, update, go }: StageProps) {
       const stage = n as HintStage;
       if (stage === 3) {
         const hint = await api.hint(problem, 3);
-        const { table, error: tableError } = await runTable(hint.code);
+        // Figures are drawn (and re-run on every drag) by GeoFigure itself.
+        const { table, error: tableError } = hint.kind === 'figure' ? {} : await runTable(hint.code);
         update((d) => {
           d.hints.smallCases = { ...hint, table, tableError };
           d.hints.revealed = 3;
@@ -61,9 +68,7 @@ export function UnderstandStage({ session, update, go }: StageProps) {
 
   return (
     <div className="stack">
-      <Card title="Problem">
-        <MathText text={problem} block className="problem-text" />
-      </Card>
+      <ProblemCard problem={session.problem!} />
       <p className="lead">
         Try on your own first. Each stage reveals a little more – open only what you need.
       </p>
@@ -82,7 +87,7 @@ export function UnderstandStage({ session, update, go }: StageProps) {
             testId={`hint-${n}`}
           >
             {revealed ? (
-              <StageContent n={n} hints={hints} problem={problem} update={update} />
+              <StageContent n={n} hints={hints} problem={problem} update={update} measures={measures} onMeasures={setMeasures} />
             ) : (
               <div className="hint-locked">
                 <span className="muted">{teaser}</span>
@@ -115,11 +120,15 @@ function StageContent({
   hints,
   problem,
   update,
+  measures,
+  onMeasures,
 }: {
   n: number;
   hints: Hints;
   problem: string;
   update: StageProps['update'];
+  measures: Figure['measures'];
+  onMeasures: (m: Figure['measures']) => void;
 }): ReactNode {
   switch (n) {
     case 1:
@@ -177,9 +186,9 @@ function StageContent({
         )
       );
     case 3:
-      return hints.smallCases && <SmallCasesView data={hints.smallCases} />;
+      return hints.smallCases && <SmallCasesView data={hints.smallCases} onMeasures={onMeasures} />;
     case 4:
-      return <ConjectureBox hints={hints} problem={problem} update={update} />;
+      return <ConjectureBox hints={hints} problem={problem} update={update} measures={measures} />;
     case 5:
       return (
         hints.method && (
@@ -220,11 +229,19 @@ function StageContent({
   return null;
 }
 
-function SmallCasesView({ data }: { data: NonNullable<Hints['smallCases']> }) {
+function SmallCasesView({
+  data,
+  onMeasures,
+}: {
+  data: NonNullable<Hints['smallCases']>;
+  onMeasures: (m: Figure['measures']) => void;
+}) {
   return (
     <>
       <MathText text={data.intro} block />
-      {data.table ? (
+      {data.kind === 'figure' ? (
+        <GeoFigure code={data.code} initial={data.free_points} onMeasures={onMeasures} testId="figure" />
+      ) : data.table ? (
         <div className="table-wrap">
           <table className="cases" data-testid="cases-table">
             <thead>
@@ -253,14 +270,24 @@ function SmallCasesView({ data }: { data: NonNullable<Hints['smallCases']> }) {
           <MathText text={data.what_to_look_for} />
         </p>
       )}
-      <Details summary="Show the code that computed this table">
+      <Details summary={data.kind === 'figure' ? 'Show the code that draws this figure' : 'Show the code that computed this table'}>
         <pre className="code">{data.code}</pre>
       </Details>
     </>
   );
 }
 
-function ConjectureBox({ hints, problem, update }: { hints: Hints; problem: string; update: StageProps['update'] }) {
+function ConjectureBox({
+  hints,
+  problem,
+  update,
+  measures,
+}: {
+  hints: Hints;
+  problem: string;
+  update: StageProps['update'];
+  measures: Figure['measures'];
+}) {
   const [text, setText] = useState(hints.conjecture?.text ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -270,7 +297,12 @@ function ConjectureBox({ hints, problem, update }: { hints: Hints; problem: stri
     setBusy(true);
     setError('');
     try {
-      const result = await api.conjecture({ problem, conjecture: text, table: hints.smallCases?.table });
+      // For a figure, the student's current measurements play the role of the small-case table.
+      const table =
+        hints.smallCases?.kind === 'figure'
+          ? { columns: ['quantity', 'value (current drawing)'], rows: measures.map((m) => [m.label, m.value]) }
+          : hints.smallCases?.table;
+      const result = await api.conjecture({ problem, conjecture: text, table });
       const check = result.check_code ? await runCheck(result.check_claim || text, result.check_code, 'conjecture') : undefined;
       update((d) => {
         d.hints.conjecture = { text, feedback: result, check };
@@ -285,7 +317,11 @@ function ConjectureBox({ hints, problem, update }: { hints: Hints; problem: stri
   const tone = { consistent: 'good', partly: 'warn', inconsistent: 'bad', unclear: 'neutral' } as const;
   return (
     <div className="conjecture">
-      <p>Look at the small cases. What pattern do you notice? Write it in one or two sentences.</p>
+      <p>
+        {hints.smallCases?.kind === 'figure'
+          ? 'Drag the points around. What stays the same? Write it in one or two sentences.'
+          : 'Look at the small cases. What pattern do you notice? Write it in one or two sentences.'}
+      </p>
       <textarea
         rows={2}
         value={text}

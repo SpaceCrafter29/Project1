@@ -1,4 +1,4 @@
-# Demo video script (about 3 minutes)
+# Demo video script (about 3.5 minutes)
 
 Record with the real Meta API if possible; demo mode (`MODEL_PROVIDER=mock`) follows exactly the same flow and is a safe fallback. Use the sample images in `public/samples/` or your own photos.
 
@@ -31,5 +31,8 @@ Open **Other approaches** and walk through the three ideas:
 - **Induction:** marked "only logically checked".
 - **Factorization:** the code caught a wrong result, so no solution is shown. Say: "verification is the default, not a feature badge."
 
-## 3:00 – Close (10 s)
+## 3:00 – Geometry (25 s)
+Start a new problem from the geometry sample. Point out that the figure is described in words and confirmed like the text. In **Small cases & experiments**, drag a corner of the quadrilateral: the areas change, but area MNPQ stays exactly half of area ABCD. On the handwritten solution, the claim "area = MN · NP" is refuted by a concrete quadrilateral that code found among 2000 random ones.
+
+## 3:25 – Close (10 s)
 "Paper and pen for thinking, AI for coaching, code for checking. Olympiad Coach."

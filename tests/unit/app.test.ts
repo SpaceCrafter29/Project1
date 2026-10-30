@@ -5,7 +5,7 @@ import { createApp } from '../../server/app';
 import { Coach } from '../../server/coach';
 import { loadConfig } from '../../server/config';
 import { MockProvider } from '../../server/llm/mock/mockProvider';
-import { DEMO_PROBLEM, DEMO_STEPS } from '../../server/llm/mock/demo';
+import { DEMO_PROBLEM, DEMO_STEPS } from '../../server/llm/mock/scripts/numberTheory';
 
 let server: Server;
 let url = '';
@@ -81,5 +81,21 @@ describe('loadConfig', () => {
   });
   it('rejects meta without a key', () => {
     expect(() => loadConfig({ MODEL_PROVIDER: 'meta' })).toThrow(/MODEL_API_KEY/);
+  });
+});
+
+describe('geometry demo over the API', () => {
+  it('serves an interactive figure for stage 3 and refutes the area formulas', async () => {
+    const { GEOMETRY_PROBLEM, GEOMETRY_STEPS } = await import('../../server/llm/mock/scripts/geometry');
+    const hint = await (await post('hint', { problem: GEOMETRY_PROBLEM, stage: 3 })).json();
+    expect(hint).toMatchObject({ kind: 'figure', free_points: { A: [-6, -3] } });
+
+    const steps = GEOMETRY_STEPS.map((text, i) => ({ id: `s${i + 1}`, text }));
+    const evaluation = await (await post('evaluate', { problem: GEOMETRY_PROBLEM, steps })).json();
+    expect(evaluation.steps.map((s: { status: string }) => s.status)).toEqual(['valid', 'valid', 'valid', 'gap', 'error', 'error']);
+    expect(evaluation.steps[3].refutation.upheld).toBe(false);
+
+    const vectors = await (await post('develop', { problem: GEOMETRY_PROBLEM, idea: (await (await post('propose', { problem: GEOMETRY_PROBLEM, steps })).json()).ideas[0] })).json();
+    expect(vectors.solution.figure_code).toContain('geo.mid');
   });
 });

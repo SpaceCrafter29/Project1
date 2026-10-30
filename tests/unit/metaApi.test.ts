@@ -107,7 +107,7 @@ describe('server + Meta provider, end to end over HTTP', () => {
       script = [() => reply('```json\n{"text": "Find all $n$.", "topic": "Number Theory", "uncertain": []}\n```')];
       const t = await post('transcribe', { images: [PIXEL] });
       expect(t.status).toBe(200);
-      expect(await t.json()).toEqual({ text: 'Find all $n$.', topic: 'Number Theory', uncertain: [] });
+      expect(await t.json()).toEqual({ text: 'Find all $n$.', topic: 'Number Theory', figure: '', uncertain: [] });
       expect(recorded[0].body.model).toBe('spark');
 
       recorded.length = 0;

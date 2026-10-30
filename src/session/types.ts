@@ -19,6 +19,8 @@ import type { DiscussionOutcome, FinalVerdict } from '../../shared/verdict';
 export interface Problem {
   images: string[];
   transcript: string;
+  /** Words describing the figure in the image (geometry); confirmed by the student like the text. */
+  figure?: string;
   topic: string;
   uncertain: string[];
   confirmed: boolean;

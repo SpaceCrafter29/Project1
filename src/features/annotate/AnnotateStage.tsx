@@ -8,10 +8,11 @@ import { cropDataUrl, downscale, strokeBox } from '../../lib/image';
 import type { Annotation } from '../../session/types';
 import { uid } from '../../session/useSession';
 import type { StageProps } from '../SessionView';
+import { problemText } from '../../session/problem';
 
 export function AnnotateStage({ session, update }: StageProps) {
   const attempt = session.attempt!;
-  const problem = session.problem!.transcript;
+  const problem = problemText(session.problem!);
   const [activeId, setActiveId] = useState<string | null>(attempt.annotations.at(-1)?.id ?? null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});

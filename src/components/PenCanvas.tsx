@@ -63,22 +63,22 @@ export function PenCanvas({
     ctx.lineJoin = 'round';
     for (const m of markings) {
       const active = m.id === activeId;
-      ctx.strokeStyle = active ? 'rgba(214, 69, 65, 0.9)' : 'rgba(232, 150, 30, 0.75)';
-      ctx.lineWidth = active ? 4 : 3;
+      ctx.strokeStyle = active ? 'rgba(224, 168, 0, 0.95)' : 'rgba(255, 212, 59, 0.85)';
+      ctx.lineWidth = active ? 5 : 4;
       path(m.stroke);
       const first = m.stroke.reduce((a, p) => (p.y < a.y ? p : a), m.stroke[0]);
-      ctx.fillStyle = active ? '#d64541' : '#e8961e';
+      ctx.fillStyle = active ? '#e0a800' : '#ffd43b';
       ctx.beginPath();
       ctx.arc(first.x / sx, first.y / sy - 12, 11, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.fillStyle = '#1f1f1f';
+      ctx.font = "bold 13px 'Comic Sans MS', 'Comic Neue', cursive";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(m.label, first.x / sx, first.y / sy - 12);
     }
     if (drawing.current) {
-      ctx.strokeStyle = 'rgba(31, 58, 95, 0.85)';
+      ctx.strokeStyle = 'rgba(51, 51, 51, 0.8)';
       ctx.lineWidth = 3;
       path(drawing.current);
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Coach, resolveStepId } from '../../server/coach';
-import { SOLUTIONS } from '../../server/llm/mock/demo';
+import { SOLUTIONS } from '../../server/llm/mock/scripts/numberTheory';
 import type { CompletionRequest, LLMProvider, Task } from '../../server/llm/types';
 
 const models = { fast: 'fast', solver: 'solver', verifier: 'verifier' };

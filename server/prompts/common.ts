@@ -1,4 +1,5 @@
 import type { ChatTurn, SolutionStep } from '../../shared/api';
+import { GEO_REFERENCE } from '../../shared/geo';
 import type { ChatMessage, ContentPart } from '../llm/types';
 
 export interface Models {
@@ -31,7 +32,17 @@ export const CHECK_CODE_RULES = `About "check_code": optional JavaScript that te
 - It is the BODY of a function without parameters (no function header) and must end with \`return {holds: <boolean>, detail: <string>}\`.
 - holds=true means the claim survived the test; holds=false means a counterexample was found; put the concrete counterexample or the tested range into detail.
 - It runs in a sandbox without network, DOM or imports and must finish within 2 seconds. Use BigInt for integers above 2^53.
+- Geometry claims are tested on many random configurations (e.g. 1000 random triangles) with coordinates; compare with geo.approx, never with ===.
+- ${GEO_REFERENCE}
 - Test the mathematical claim itself, never your own opinion about it. Use null when nothing is numerically testable.`;
+
+export const FIGURE_CODE_RULES = `About figure code: JavaScript that constructs the figure from draggable points, so the student can move them and watch what changes and what stays the same.
+- It is the BODY of a function without parameters. The variable \`free\` holds the current draggable points, e.g. \`const { A, B, C } = free;\`, and \`geo\` holds helpers.
+- It must return {points: {name: [x, y], ...}, segments: [["A","B"], ...], lines: [["A","B"]] (infinite lines), polygons: [{points: ["A","B","C"], fill: false}], circles: [{center: "O", through: "A"} or {center: "O", radius: 2}], measures: [{label: "AB", value: number}, ...]}.
+- Choose measures that are worth watching (lengths, angles, ratios, areas), but do not label any measure with the claim or the answer.
+- free_points gives the starting position of every draggable point, in a general position (no accidental symmetry), coordinates roughly between -10 and 10.
+- It runs in a sandbox without network, DOM or imports and must be fast (it runs on every drag).
+- ${GEO_REFERENCE}`;
 
 export const TABLE_CODE_RULES = `About "code": JavaScript that computes the small cases. Rules:
 - It is the BODY of a function without parameters (no function header) and must end with \`return {columns: [...], rows: [[...], ...]}\`, where every row has one entry per column (numbers or short strings).

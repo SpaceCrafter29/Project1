@@ -3,11 +3,12 @@ import type { AlternativeDecision } from '../../../shared/alternatives';
 import type { ChatTurn } from '../../../shared/api';
 import { ChatThread } from '../../components/ChatThread';
 import { CheckResult } from '../../components/CheckResult';
+import { GeoFigure } from '../../components/GeoFigure';
 import { MarkableSteps } from '../../components/MarkableSteps';
 import { MathText } from '../../components/MathText';
 import { Button, Card, Details, ErrorBox, Pill, Spinner } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
-import { isDemo, useConfig } from '../../lib/config';
+import { demoSample, isDemo, useConfig } from '../../lib/config';
 import { runCheck } from '../../lib/sandbox';
 import type { Alternative, CheckRun } from '../../session/types';
 import { uid } from '../../session/useSession';
@@ -24,11 +25,13 @@ export function AlternativeCard({
   alt,
   decision,
   problem,
+  topic,
   updateAlt,
 }: {
   alt: Alternative;
   decision?: AlternativeDecision;
   problem: string;
+  topic: string;
   updateAlt: AltUpdater;
 }) {
   const develop = async () => {
@@ -106,7 +109,7 @@ export function AlternativeCard({
             </div>
           )}
           {alt.state === 'done' && decision && decision.verdict !== 'discarded' && (
-            <SolutionView alt={alt} decision={decision} problem={problem} updateAlt={updateAlt} />
+            <SolutionView alt={alt} decision={decision} problem={problem} topic={topic} updateAlt={updateAlt} />
           )}
         </div>
       )}
@@ -118,11 +121,13 @@ function SolutionView({
   alt,
   decision,
   problem,
+  topic,
   updateAlt,
 }: {
   alt: Alternative;
   decision: AlternativeDecision;
   problem: string;
+  topic: string;
   updateAlt: AltUpdater;
 }) {
   const { solution, verification, repaired } = alt.developed!;
@@ -258,6 +263,9 @@ function SolutionView({
           Only logically checked – no part of this solution could be tested numerically.
         </p>
       )}
+      {solution.figure_code && (
+        <GeoFigure code={solution.figure_code} initial={solution.free_points ?? {}} testId="solution-figure" />
+      )}
       <div className="solution-toolbar">
         <Button variant={penMode ? 'primary' : 'secondary'} onClick={() => setPenMode((p) => !p)} data-testid="pen-mode">
           {penMode ? 'Pen on – circle steps to ask' : 'Mark with pen'}
@@ -390,12 +398,12 @@ function SolutionView({
           <CheckResult key={i} run={c} />
         ))}
       </Details>
-      <OwnVersion alt={alt} problem={problem} updateAlt={updateAlt} />
+      <OwnVersion alt={alt} problem={problem} topic={topic} updateAlt={updateAlt} />
     </div>
   );
 }
 
-function OwnVersion({ alt, problem, updateAlt }: { alt: Alternative; problem: string; updateAlt: AltUpdater }) {
+function OwnVersion({ alt, problem, topic, updateAlt }: { alt: Alternative; problem: string; topic: string; updateAlt: AltUpdater }) {
   const config = useConfig();
   const [open, setOpen] = useState(!!alt.ownAttempt);
   const attempt = alt.ownAttempt;
@@ -435,7 +443,7 @@ function OwnVersion({ alt, problem, updateAlt }: { alt: Alternative; problem: st
               x.ownAttempt = undefined;
             })
           }
-          sampleUrl={isDemo(config) ? '/samples/own-version.png' : undefined}
+          sampleUrl={isDemo(config) ? demoSample('own-version', topic) : undefined}
         />
       ) : !attempt.assessment ? (
         <RunAssessment

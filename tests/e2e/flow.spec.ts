@@ -96,7 +96,7 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await review3.locator('textarea').fill('Step 2 lists all remainders 2, 4, 1, so both directions follow.');
   await review3.getByRole('button', { name: 'Send' }).click();
   await expect(review3.locator('.chat-coach')).toContainText('You are right');
-  await expect(review3.locator('.badge')).toHaveText('valid');
+  await expect(review3.locator('.mark-label')).toHaveText('valid');
   await expect(page.getByTestId('score')).toHaveText('4');
 
   // Discussion with a code test: the coach maintains step 5 with a counterexample.
@@ -106,7 +106,7 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await review5.getByRole('button', { name: 'Send' }).click();
   await expect(review5.locator('.chat-check')).toContainText('counterexample found');
   await expect(review5.locator('.chat-coach').last()).toContainText('The test settles it');
-  await expect(review5.locator('.badge')).toHaveText('error');
+  await expect(review5.locator('.mark-label')).toHaveText('error');
   await shot(page, '06-discussion');
 
   // 6. Pen markings with their own chat
@@ -232,4 +232,91 @@ test('code-check sandbox has no network access', async ({ page }) => {
   expect((await run("return Object.getPrototypeOf(self).fetch ?? WorkerGlobalScope.prototype.fetch;")).value).toBeUndefined();
   expect((await run("return import('/api/config').then(() => 'loaded');")).status).toBe('error');
   expect((await run("return typeof indexedDB;")).value).toBe('undefined');
+});
+
+/** Reads the live measurements next to an interactive figure. */
+async function measures(figure: Locator): Promise<Record<string, number>> {
+  const rows = await figure.getByTestId('measures').locator('div').allInnerTexts();
+  return Object.fromEntries(
+    rows.map((row) => {
+      const [label, value] = row.split('\n').map((s) => s.trim());
+      return [label, Number(value)];
+    }),
+  );
+}
+
+test('geometry: interactive figure, counterexamples on random shapes, figures in alternatives', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await page.getByTestId('new-problem').click();
+
+  // The figure in the photo is described in words and confirmed like the text.
+  await page.getByTestId('problem-images-file').setInputFiles(path.join(samples, 'geometry-problem.png'));
+  await page.getByTestId('read-problem').click();
+  await expect(page.getByTestId('problem-text')).toHaveValue(/convex quadrilateral/);
+  await expect(page.getByTestId('problem-figure')).toHaveValue(/midpoints with tick marks/);
+  await page.getByTestId('confirm-problem-btn').click();
+  await expect(page.getByTestId('problem-card').locator('img')).toBeVisible();
+
+  // Stage 3 is an interactive figure instead of a table.
+  for (const n of [1, 2, 3]) await page.getByTestId(`reveal-${n}`).click();
+  const figure = page.getByTestId('figure');
+  await expect(figure.getByTestId('measures')).toBeVisible();
+  const before = await measures(figure);
+  expect(before['area MNPQ'] * 2).toBeCloseTo(before['area ABCD'], 2);
+
+  const handle = figure.getByTestId('handle-D');
+  await figure.locator('svg').scrollIntoViewIfNeeded();
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 70, box.y + box.height / 2 - 40, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => (await measures(figure))['area ABCD']).not.toBeCloseTo(before['area ABCD'], 1);
+  const after = await measures(figure);
+  expect(after['area MNPQ'] * 2).toBeCloseTo(after['area ABCD'], 2);
+  expect(after.MN).toBeCloseTo(after.PQ, 3);
+  await shot(page, 'geo-03-figure');
+
+  await page.getByTestId('reveal-4').click();
+  await page.getByTestId('conjecture-input').fill('The area of MNPQ is always half of the area of ABCD');
+  await page.getByTestId('check-conjecture').click();
+  await expect(page.getByTestId('conjecture-feedback')).toContainText('consistent');
+  await expect(page.getByTestId('conjecture-feedback').getByTestId('check-result')).toContainText('Holds');
+
+  // Handwritten solution with a sketch: two false area formulas, refuted on random quadrilaterals.
+  await page.getByTestId('go-solve').click();
+  await page.getByTestId('attempt-images-file').setInputFiles(path.join(samples, 'geometry-solution.png'));
+  await page.getByTestId('read-solution').click();
+  await page.getByTestId('confirm-steps-btn').click();
+  await expect(page.getByTestId('score')).toHaveText('2–3');
+  await expect(page.getByTestId('review-4').locator('.mark-label')).toContainText('unclear');
+  await expect(page.getByTestId('review-5').locator('.mark-label')).toHaveText('error');
+  await expect(page.getByTestId('review-5').getByTestId('check-result')).toContainText('Counterexample found');
+  await expect(page.getByTestId('review-6').getByTestId('check-result')).toContainText('but AC · BD / 2 =');
+  await shot(page, 'geo-05-feedback');
+
+  const review4 = page.getByTestId('review-4');
+  await review4.getByTestId('disagree').click();
+  await review4.locator('textarea').fill('MN and QP are both the vector AC/2, so they point the same way.');
+  await review4.getByRole('button', { name: 'Send' }).click();
+  await expect(review4.locator('.chat-coach')).toContainText('You are right');
+  await expect(page.getByTestId('score')).toHaveText('3');
+
+  // Alternatives: the vector solution comes with its own figure; similarity is caught by code.
+  await page.getByTestId('tab-learn').click();
+  await page.getByTestId('propose').click();
+  const alts = page.getByTestId('alternative');
+  await alts.nth(0).getByTestId('toggle-alternative').click();
+  const solutionFigure = alts.nth(0).getByTestId('solution-figure');
+  await expect(solutionFigure.getByTestId('measures')).toContainText('area MNPQ / area ABCD');
+  await expect(alts.nth(0).getByTestId('unverified')).toHaveCount(0);
+  await alts.nth(1).getByTestId('toggle-alternative').click();
+  await expect(alts.nth(1).getByTestId('logic-only')).toBeVisible();
+  await alts.nth(2).getByTestId('toggle-alternative').click();
+  await expect(alts.nth(2).getByTestId('alternative-discarded')).toBeVisible();
+  await shot(page, 'geo-09-alternatives');
+
+  expect(errors).toEqual([]);
 });

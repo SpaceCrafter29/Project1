@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { ImageInput } from '../../components/ImageInput';
 import { MathText } from '../../components/MathText';
-import { Button, Card, ErrorBox, Pill } from '../../components/ui';
+import { Button, Card, ErrorBox, Taped } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
 import { isDemo, useConfig } from '../../lib/config';
 import type { StageProps } from '../SessionView';
+import { ProblemCard } from './ProblemCard';
 
 export function ProblemStage({ session, update, go }: StageProps) {
   const config = useConfig();
@@ -19,7 +20,14 @@ export function ProblemStage({ session, update, go }: StageProps) {
     try {
       const result = await api.transcribe({ images });
       update((d) => {
-        d.problem = { images, transcript: result.text, topic: result.topic, uncertain: result.uncertain, confirmed: false };
+        d.problem = {
+          images,
+          transcript: result.text,
+          figure: result.figure,
+          topic: result.topic,
+          uncertain: result.uncertain,
+          confirmed: false,
+        };
       });
     } catch (err) {
       setError(errorMessage(err));
@@ -37,7 +45,14 @@ export function ProblemStage({ session, update, go }: StageProps) {
           onChange={setImages}
           max={3}
           testId="problem-images"
-          sample={isDemo(config) ? { label: 'Use sample problem', url: '/samples/problem.png' } : undefined}
+          samples={
+            isDemo(config)
+              ? [
+                  { label: 'Sample: number theory', url: '/samples/problem.png' },
+                  { label: 'Sample: geometry', url: '/samples/geometry-problem.png' },
+                ]
+              : []
+          }
         />
         {error && <ErrorBox message={error} onRetry={read} />}
         <div className="actions">
@@ -56,7 +71,9 @@ export function ProblemStage({ session, update, go }: StageProps) {
         <div className="split">
           <div className="split-images">
             {problem.images.map((src, i) => (
-              <img key={i} src={src} alt={`Problem page ${i + 1}`} className="source-image" />
+              <Taped key={i}>
+                <img src={src} alt={`Problem page ${i + 1}`} className="source-image" />
+              </Taped>
             ))}
           </div>
           <div>
@@ -77,6 +94,22 @@ export function ProblemStage({ session, update, go }: StageProps) {
               <span className="muted small">Preview</span>
               <MathText text={problem.transcript} block />
             </div>
+            {(problem.figure !== undefined && problem.figure !== '') || problem.topic.toLowerCase().includes('geometry') ? (
+              <label className="field">
+                <span>The figure, as I understood it</span>
+                <textarea
+                  value={problem.figure ?? ''}
+                  rows={3}
+                  placeholder="Describe the figure: points, lines, circles, marked angles…"
+                  onChange={(e) =>
+                    update((d) => {
+                      d.problem!.figure = e.target.value;
+                    })
+                  }
+                  data-testid="problem-figure"
+                />
+              </label>
+            ) : null}
             {problem.uncertain.length > 0 && (
               <div className="uncertain">
                 <strong>I was unsure about:</strong>
@@ -121,12 +154,8 @@ export function ProblemStage({ session, update, go }: StageProps) {
   }
 
   return (
-    <Card
-      title="The problem"
-      aside={problem.topic ? <Pill tone="accent">{problem.topic}</Pill> : undefined}
-      testId="problem-confirmed"
-    >
-      <MathText text={problem.transcript} block className="problem-text" />
+    <div className="stack" data-testid="problem-confirmed">
+      <ProblemCard problem={problem} title={problem.topic ? `The problem · ${problem.topic}` : 'The problem'} />
       <div className="actions">
         <Button variant="primary" onClick={() => go('understand')}>
           Understand it step by step
@@ -143,6 +172,6 @@ export function ProblemStage({ session, update, go }: StageProps) {
           Edit text
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

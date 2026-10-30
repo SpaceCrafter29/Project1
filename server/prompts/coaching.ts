@@ -11,6 +11,7 @@ import type { CompletionRequest } from '../llm/types';
 import {
   CHECK_CODE_RULES,
   COACH_SYSTEM,
+  FIGURE_CODE_RULES,
   REVIEWER_SYSTEM,
   historyBlock,
   image,
@@ -131,12 +132,15 @@ Requirements:
 - final_answer: the final result in words/LaTeX (empty string for a pure proof problem), final_answer_normalized: a short canonical form for comparison (e.g. "n=3k" or "42"; empty for pure proofs).
 - why_it_works: why this idea cracks the problem (2-3 sentences).
 - when_to_try: which features of a problem suggest trying this idea (1-2 sentences).
-- checks: claims of the solution that can be tested numerically (the final result on small cases, key lemmas), each with JavaScript code.
+- checks: claims of the solution that can be tested numerically (the final result on small cases, key lemmas; for geometry: random configurations), each with JavaScript code.
+- figure_code / free_points: for a geometry problem, an interactive figure showing the construction this solution uses (auxiliary lines included); null and {} otherwise.
 
 ${CHECK_CODE_RULES}
 
+${FIGURE_CODE_RULES}
+
 Format:
-{"steps": [{"id": "a1", "text": "", "justification": ""}], "final_answer": "", "final_answer_normalized": "", "why_it_works": "", "when_to_try": "", "checks": [{"claim": "", "code": "<function body>"}]}`;
+{"steps": [{"id": "a1", "text": "", "justification": ""}], "final_answer": "", "final_answer_normalized": "", "why_it_works": "", "when_to_try": "", "checks": [{"claim": "", "code": "<function body>"}], "figure_code": null, "free_points": {}}`;
   return {
     task: 'solve',
     model: models.solver,

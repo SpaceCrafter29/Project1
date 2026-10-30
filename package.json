@@ -19,6 +19,7 @@
     "handwriting-test": "tsx scripts/handwriting-test.ts"
   },
   "dependencies": {
+    "@fontsource/comic-neue": "^5.3.0",
     "express": "^5.3.0",
     "immer": "^10.2.0",
     "katex": "^0.16.47",

@@ -11,15 +11,15 @@ export function ImageInput({
   onChange,
   max = 6,
   hint,
-  sample,
+  samples = [],
   testId,
 }: {
   images: string[];
   onChange: (images: string[]) => void;
   max?: number;
   hint?: string;
-  /** Optional sample image (for demo mode). */
-  sample?: { label: string; url: string };
+  /** Optional sample images (for demo mode). */
+  samples?: { label: string; url: string }[];
   testId?: string;
 }) {
   const [dragging, setDragging] = useState(false);
@@ -78,11 +78,10 @@ export function ImageInput({
     void addBlobs([...event.dataTransfer.files]);
   };
 
-  const loadSample = async () => {
-    if (!sample) return;
+  const loadSample = async (url: string) => {
     setBusy(true);
     try {
-      const blob = await (await fetch(sample.url)).blob();
+      const blob = await (await fetch(url)).blob();
       await addBlobs([blob]);
     } finally {
       setBusy(false);
@@ -126,11 +125,11 @@ export function ImageInput({
             Take photo
           </Button>
           <Button onClick={() => fileRef.current?.click()}>Upload image{max > 1 ? 's' : ''}</Button>
-          {sample && (
-            <Button variant="ghost" onClick={loadSample}>
-              {sample.label}
+          {samples.map((s) => (
+            <Button key={s.url} variant="ghost" onClick={() => void loadSample(s.url)}>
+              {s.label}
             </Button>
-          )}
+          ))}
           <span className="muted small">{hint ?? 'or paste a screenshot (Ctrl+V) / drop a file here'}</span>
         </div>
       )}

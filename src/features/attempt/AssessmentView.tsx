@@ -5,7 +5,7 @@ import { scoreRange } from '../../../shared/verdict';
 import { ChatThread } from '../../components/ChatThread';
 import { CheckResult } from '../../components/CheckResult';
 import { MathText } from '../../components/MathText';
-import { Button, Card, Details, Pill, StatusBadge } from '../../components/ui';
+import { Button, Card, Details, GradeMark, Pill, StatusBadge } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
 import { runCheck } from '../../lib/sandbox';
 import type { Attempt, StepReview } from '../../session/types';
@@ -34,20 +34,17 @@ export function AssessmentView({
   return (
     <div className="stack" data-testid="assessment">
       <Card className="score-card">
-        <div className="score">
-          <span className="score-value" data-testid="score">
-            {range.low === range.high ? range.low : `${range.low}–${range.high}`}
-          </span>
-          <span className="score-max">/ 7</span>
-        </div>
+        <GradeMark value={range.low === range.high ? String(range.low) : `${range.low}–${range.high}`} testId="score" />
         <div>
           <p className="muted small">
             Estimated olympiad score{range.low !== range.high && ' – the range depends on the steps marked unclear'}
           </p>
           <MathText text={assessment.summary} block />
           <p className="legend">
-            <Pill tone="good">{counts.valid} valid</Pill> <Pill tone="warn">{counts.gap} gap</Pill>{' '}
-            <Pill tone="bad">{counts.error} error</Pill> <Pill>{counts.unclear} unclear</Pill>
+            <span className="tally tally-valid">✓ {counts.valid} valid</span>
+            <span className="tally tally-gap">? {counts.gap} gap</span>
+            <span className="tally tally-error">✗ {counts.error} error</span>
+            <span className="tally tally-unclear">~ {counts.unclear} unclear</span>
           </p>
           {assessment.ideaUsed && assessment.ideaUsed !== 'n/a' && (
             <p className="idea-used" data-testid="idea-used">
@@ -144,12 +141,12 @@ function StepReviewCard({
 
   return (
     <li className={`step-review status-${final.status}`} data-testid={`review-${index + 1}`}>
-      <div className="step-review-head">
-        <span className="step-label">Step {index + 1}</span>
-        <StatusBadge status={final.status} />
+      <div className="step-review-student">
+        <span className="step-label">{index + 1}.</span>
+        <MathText text={stepText} block className="step-text" />
       </div>
-      <MathText text={stepText} block className="step-text" />
-      <div className="step-review-body">
+      <div className="step-review-margin">
+        <StatusBadge status={final.status} />
         {(final.status === 'gap' || final.status === 'error') && ev.quote && (
           <p className="quote">
             “<MathText text={ev.quote} />”
@@ -180,20 +177,20 @@ function StepReviewCard({
             </pre>
           )}
         </Details>
+        {!open && (
+          <div className="actions">
+            {final.status !== 'valid' ? (
+              <Button variant="ghost" onClick={() => setOpen(true)} data-testid="disagree">
+                I think my step is right
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={() => setOpen(true)}>
+                Ask about this step
+              </Button>
+            )}
+          </div>
+        )}
       </div>
-      {!open && (
-        <div className="actions">
-          {final.status !== 'valid' ? (
-            <Button variant="ghost" onClick={() => setOpen(true)} data-testid="disagree">
-              I think my step is right
-            </Button>
-          ) : (
-            <Button variant="ghost" onClick={() => setOpen(true)}>
-              Ask about this step
-            </Button>
-          )}
-        </div>
-      )}
       {open && (
         <div className="discussion">
           <p className="muted small">

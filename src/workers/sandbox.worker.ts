@@ -1,10 +1,10 @@
-// Runs one piece of model-written JavaScript, isolated from the page.
-// A fresh worker is used per run and terminated by the caller on timeout.
-import { executeCode, toPlain } from '../../shared/codecheck';
+// Runs model-written JavaScript, isolated from the page. Checks use a fresh worker per
+// run; figures keep one worker while the student drags. Callers terminate it on timeout.
+import { executeCode, toPlain, type RunArgs } from '../../shared/codecheck';
 
 interface WorkerScope {
   postMessage(message: unknown): void;
-  onmessage: ((event: MessageEvent<{ code: string }>) => void) | null;
+  onmessage: ((event: MessageEvent<{ id?: number; code: string; args?: RunArgs }>) => void) | null;
 }
 
 const scope = self as unknown as WorkerScope & Record<string, unknown>;
@@ -36,9 +36,10 @@ for (const name of [
 
 scope.onmessage = (event) => {
   const started = performance.now();
-  const done = (payload: Record<string, unknown>) => post({ ...payload, ms: performance.now() - started });
+  const { id, code, args } = event.data;
+  const done = (payload: Record<string, unknown>) => post({ ...payload, id, ms: performance.now() - started });
   try {
-    Promise.resolve(executeCode(event.data.code)).then(
+    Promise.resolve(executeCode(code, args)).then(
       (value) => done({ status: 'ok', value: toPlain(value) }),
       (err: unknown) => done({ status: 'error', error: String((err as Error)?.message ?? err) }),
     );

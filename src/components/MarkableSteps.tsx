@@ -52,8 +52,8 @@ export function MarkableSteps<T extends { id: string }>({
     ctx.clearRect(0, 0, box.clientWidth, box.clientHeight);
     const s = stroke.current;
     if (!s || s.length < 2) return;
-    ctx.strokeStyle = 'rgba(214, 69, 65, 0.85)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(224, 168, 0, 0.9)';
+    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.beginPath();
     s.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));

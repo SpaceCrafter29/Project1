@@ -4,6 +4,7 @@ import type { CompletionRequest } from '../llm/types';
 import {
   CHECK_CODE_RULES,
   COACH_SYSTEM,
+  FIGURE_CODE_RULES,
   TABLE_CODE_RULES,
   image,
   join,
@@ -19,9 +20,10 @@ export function transcribePrompt(input: TranscribeRequest, models: Models): Comp
 - Write formulas in LaTeX ($...$).
 - If something is hard to read, write your best reading and list that part in "uncertain".
 - "topic" is one of: algebra, combinatorics, geometry, number theory, other.
+- "figure": if the image contains a figure, describe it precisely in words: the points and their labels, segments, circles, which points lie on which lines or circles, and any marked lengths, angles or right angles. Only describe what is drawn, never what it suggests. Empty string if there is no figure.
 
 Format:
-{"text": "<full problem text>", "topic": "<topic>", "uncertain": ["<parts you were unsure about>"]}`;
+{"text": "<full problem text>", "topic": "<topic>", "figure": "<figure description or empty>", "uncertain": ["<parts you were unsure about>"]}`;
   return {
     task: 'transcribe',
     model: models.fast,
@@ -42,12 +44,16 @@ Format:
 Format:
 {"given": ["..."], "wanted": ["..."], "notes": "<optional>"}`,
 
-  3: `Stage 3 of 6 – "Small cases". Write JavaScript that computes a table of the first small cases (n = 1, 2, 3, ... or the smallest configurations) so the student can look for a pattern themselves. Choose columns that make the relevant quantities visible, but do NOT include a column that states the answer or the pattern, and do not describe the pattern in your text.
+  3: `Stage 3 of 6 – "Small cases / experiment". Let the student experiment so they can find a pattern themselves. Do not describe the pattern or the answer in your text.
+- For a GEOMETRY problem use kind "figure": write figure code that constructs the configuration from draggable points, with measures that make relevant quantities visible while the student drags.
+- Otherwise use kind "table": write code that computes a table of the first small cases (n = 1, 2, 3, ... or the smallest configurations). Choose columns that make the relevant quantities visible, but do NOT include a column that states the answer or the pattern.
 
 ${TABLE_CODE_RULES}
 
+${FIGURE_CODE_RULES}
+
 Format:
-{"intro": "<one sentence: what the table shows>", "code": "<function body>", "what_to_look_for": "<a neutral question that guides attention without giving the pattern away>"}`,
+{"kind": "table|figure", "intro": "<one sentence: what the table or figure shows>", "code": "<function body>", "free_points": {"A": [0, 0]} (figure only, else {}), "what_to_look_for": "<a neutral question that guides attention without giving the pattern away>"}`,
 
   5: `Stage 5 of 6 – "Method hint". Name ONE general method that is likely to work here (e.g. invariant, pigeonhole principle, induction, extremal principle, modular arithmetic, double counting, contradiction, coloring, symmetry). State the principle in one general sentence that the student can recognize in future problems. Explain why it might fit THIS problem only in terms of the problem's features, without performing any step of the solution.
 
@@ -72,7 +78,7 @@ export function hintPrompt(problem: string, stage: HintStage, models: Models): C
 
 export function conjecturePrompt(input: ConjectureRequest, models: Models): CompletionRequest {
   const table = input.table
-    ? `SMALL-CASE TABLE the student computed:\n${input.table.columns.join(' | ')}\n${input.table.rows
+    ? `SMALL CASES / MEASUREMENTS the student looked at:\n${input.table.columns.join(' | ')}\n${input.table.rows
         .slice(0, 30)
         .map((r) => r.join(' | '))
         .join('\n')}`

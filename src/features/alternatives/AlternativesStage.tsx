@@ -6,9 +6,10 @@ import type { Alternative } from '../../session/types';
 import { uid } from '../../session/useSession';
 import type { StageProps } from '../SessionView';
 import { AlternativeCard } from './AlternativeCard';
+import { problemText } from '../../session/problem';
 
 export function AlternativesStage({ session, update }: StageProps) {
-  const problem = session.problem!.transcript;
+  const problem = problemText(session.problem!);
   const alternatives = session.alternatives;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -79,6 +80,7 @@ export function AlternativesStage({ session, update }: StageProps) {
             alt={alt}
             decision={decisions.get(alt.id) as AlternativeDecision | undefined}
             problem={problem}
+            topic={session.problem!.topic}
             updateAlt={(fn) =>
               update((d) => {
                 const target = d.alternatives?.find((a) => a.id === alt.id);
