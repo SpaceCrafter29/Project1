@@ -94,8 +94,29 @@ export type Skeleton = z.infer<typeof SkeletonSchema>;
 // ---------------------------------------------------------------------------
 // 3./4. Recognition of a handwritten solution
 
+const fraction = z.coerce.number().min(0).max(1);
+
+/** Where a step is written on the photo: page index and a box in fractions of the image size. */
+export const StepBoxSchema = z.object({
+  page: z.coerce.number().int().min(0).catch(0),
+  x: fraction,
+  y: fraction,
+  w: fraction,
+  h: fraction,
+});
+export type StepBox = z.infer<typeof StepBoxSchema>;
+
 export const RecognitionSchema = z.object({
-  steps: z.array(z.object({ text, unclear: z.boolean().default(false) })).min(1),
+  steps: z
+    .array(
+      z.object({
+        text,
+        unclear: z.boolean().default(false),
+        // An unusable box is dropped rather than failing the whole recognition.
+        box: StepBoxSchema.nullish().catch(null).transform((b) => b ?? null),
+      }),
+    )
+    .min(1),
   unreadable: z.array(text).default([]),
 });
 export type Recognition = z.infer<typeof RecognitionSchema>;
@@ -115,15 +136,22 @@ export const FirstPassStepSchema = z.object({
   deduction: points.default(0),
   check_code: optionalCode,
   check_claim: optionalText,
+  /** Imprecise wording or notation (not a mathematical error): quoted, explained, with a better wording. */
+  wording: z.array(z.object({ quote: text, issue: text, suggestion: optionalText })).default([]),
+  /** One concrete way to make this step stronger or clearer; empty if nothing to add. */
+  improve: optionalText,
 });
 export type FirstPassStep = z.infer<typeof FirstPassStepSchema>;
+export type WordingNote = FirstPassStep['wording'][number];
 
 export const EvaluationSchema = z.object({
   steps: z.array(FirstPassStepSchema),
   score: points,
   summary: text,
-  idea_used: looseEnum(['yes', 'partly', 'no', 'n/a'] as const).optional(),
-  idea_comment: optionalText,
+  /** What the student did well, concretely. */
+  strengths: z.array(text).default([]),
+  /** The changes that would improve the write-up most, most important first. */
+  improvements: z.array(text).default([]),
 });
 export type Evaluation = z.infer<typeof EvaluationSchema>;
 

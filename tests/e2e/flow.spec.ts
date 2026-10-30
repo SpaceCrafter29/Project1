@@ -112,7 +112,23 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await expect(page.getByTestId('review-5')).toContainText(/Counterexample found\s*7 is odd and divisible by 7/);
   await expect(page.getByTestId('part-heading-a')).toBeVisible();
   await expect(page.getByTestId('part-heading-b')).toBeVisible();
+  // The student's own solution is marked: spots in the text, wording notes, what to improve.
+  const review2 = page.getByTestId('review-2');
+  await expect(review2.locator('.hl-gap')).toContainText('repeat with period 3');
+  await expect(review2.getByTestId('wording')).toContainText('a list is not a statement');
+  await expect(review2.getByTestId('improve')).toContainText('State the key fact as a lemma');
+  await expect(page.getByTestId('improvements').locator('li').first()).toContainText('Prove why the remainders repeat');
+  await expect(page.getByTestId('strengths')).toContainText('period-3 pattern');
+  // ... and so is the photo: one box per step, error boxes marked as such, a click jumps to the comment.
+  const marked = page.getByTestId('marked-solution');
+  await expect(marked.locator('.mark-box')).toHaveCount(6);
+  await expect(marked.getByTestId('mark-5')).toHaveClass(/mark-error/);
+  await expect(marked.getByTestId('mark-2')).toHaveClass(/mark-gap/);
+  await marked.getByTestId('mark-5').click();
+  await expect(page.getByTestId('review-5')).toHaveClass(/flash/);
   await shot(page, '05-feedback');
+  await marked.scrollIntoViewIfNeeded();
+  await shot(page, '05b-marked-solution');
 
   // Discussion mode: the coach concedes step 3 -> valid, score rises.
   const review3 = page.getByTestId('review-3');
@@ -210,7 +226,10 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await first.getByTestId('read-solution').click();
   await first.getByTestId('confirm-steps-btn').click();
   await expect(first.getByTestId('score')).toHaveText('7');
-  await expect(first.getByTestId('idea-used')).toContainText('yes');
+  // Corrected on its own merits, not compared with the coach's solution: full marks, wording notes left.
+  await expect(first.getByTestId('review-1').getByTestId('wording')).toContainText('is not introduced');
+  await expect(first.getByTestId('improvements')).toContainText('Introduce every variable');
+  await expect(first.getByTestId('marked-solution').locator('.mark-box')).toHaveCount(4);
   await shot(page, '10-own-version');
 
   // Everything is stored locally and survives a reload.
@@ -329,6 +348,8 @@ test('geometry: interactive figure, counterexamples on random shapes, figures in
   await expect(page.getByTestId('review-5').locator('.mark-label')).toHaveText('error');
   await expect(page.getByTestId('review-5').getByTestId('check-result')).toContainText('Counterexample found');
   await expect(page.getByTestId('review-6').getByTestId('check-result')).toContainText('but AC · BD / 2 =');
+  await expect(page.getByTestId('marked-solution').locator('.mark-box')).toHaveCount(6);
+  await expect(page.getByTestId('mark-5')).toHaveClass(/mark-error/);
   await shot(page, 'geo-05-feedback');
 
   const review4 = page.getByTestId('review-4');

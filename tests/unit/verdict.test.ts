@@ -11,6 +11,8 @@ const step = (over: Partial<FirstPassStep>): FirstPassStep => ({
   deduction: 2,
   check_code: null,
   check_claim: '',
+  wording: [],
+  improve: '',
   ...over,
 });
 const text = 'But $2^n + 1$ is always odd, and an odd number cannot be divisible by 7.';

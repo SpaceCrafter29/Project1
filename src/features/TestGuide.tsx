@@ -42,6 +42,9 @@ const SECTIONS: { title: string; items: { id: string; text: string }[] }[] = [
     title: '4 · Feedback',
     items: [
       { id: 'grade', text: 'The circled grade (3–4 /7), the marks ✓ ? ✗ ~ in the margin and the headings Part (a) / Part (b).' },
+      { id: 'improve-first', text: '“To improve first” lists the most important fixes; “What you did well” what to keep.' },
+      { id: 'marked-photo', text: '“Your solution, marked”: your photo with a box per step (✗ error, ? gap, ~ unclear, ✎ wording). Tap the ✗ 5 box: it jumps to the comment.' },
+      { id: 'wording', text: 'Step 2: the problem spot is highlighted in your text, “✎ Wording” says what is imprecise and how to say it better, “How to improve” what to add.' },
       { id: 'stamps', text: 'Code-check stamps (a counterexample on step 5) and “Check details” on any step.' },
       { id: 'concede', text: 'Step 3: “I think my step is right”, explain → the coach agrees and the grade becomes 4.' },
       { id: 'counter', text: 'Step 5: disagree → the coach runs a code test in the chat and explains the counterexample.' },
@@ -65,7 +68,7 @@ const SECTIONS: { title: string; items: { id: string; text: string }[] }[] = [
     items: [
       { id: 'alts', text: '“Show other approaches”: open all three – one verified, one “only logically checked”, one hidden by a failed code check.' },
       { id: 'alt-ask', text: '“Mark with pen” and circle steps, or “Ask” on a step; “That’s not right?” re-checks a step.' },
-      { id: 'own', text: '“Write my own version with this idea” → sample → feedback with “Did you use the idea?”.' },
+      { id: 'own', text: '“Write my own version with this idea” → sample → your version is corrected on its own: 7/7, with wording notes left.' },
       { id: 'geo-alt', text: 'Geometry problem: the vector solution comes with its own draggable figure.' },
     ],
   },

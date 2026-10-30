@@ -11,10 +11,11 @@ import type {
   SolutionStep,
   TranscribeRequest,
 } from '../../../shared/api';
-import type { Evaluation, FirstPassStep } from '../../../shared/schemas';
+import type { Evaluation, FirstPassStep, StepBox } from '../../../shared/schemas';
 import type { RefuteInput } from '../../prompts/attempt';
 import type { SolveInput, VerifyInput } from '../../prompts/coaching';
 import type { CompletionRequest, CompletionResult, LLMProvider } from '../types';
+import sampleLayout from './sampleLayout.json';
 import { geometry } from './scripts/geometry';
 import { numberTheory } from './scripts/numberTheory';
 import { S, type DemoScript } from './scripts/types';
@@ -83,8 +84,11 @@ export class MockProvider implements LLMProvider {
         return nextHint(script, req.input as NextHintRequest);
       case 'recognize': {
         const r = req.input as RecognizeRequest;
-        const steps = r.partial ? script.progressSteps : r.intendedIdea ? script.ownVersionSteps : script.steps;
-        return { steps: steps.map((text) => ({ text, unclear: false })), unreadable: [] };
+        if (r.partial) return { steps: script.progressSteps.map((text) => ({ text, unclear: false, box: null })), unreadable: [] };
+        const own = !!r.intendedIdea;
+        const boxes = stepBoxes(script, own, r.images);
+        const steps = own ? script.ownVersionSteps : script.steps;
+        return { steps: steps.map((text, i) => ({ text, unclear: false, box: boxes[i] ?? null })), unreadable: [] };
       }
       case 'evaluate':
         return evaluate(script, req.input as EvaluateRequest);
@@ -123,27 +127,13 @@ function nextHint(script: DemoScript, input: NextHintRequest) {
   return later ? script.laterPartHint(input, level) : script.nextHint(input, level);
 }
 
+/** Every solution – including an own version with a new idea – is corrected on its own merits. */
 function evaluate(script: DemoScript, input: EvaluateRequest): Evaluation {
-  if (input.intendedIdea) {
-    return {
-      steps: input.steps.map((s, i) => ({
-        step: s.id,
-        status: 'valid',
-        quote: '',
-        reason: i === 0 ? 'Correct set-up.' : `Follows from ${input.steps[i - 1].id}.`,
-        evidence: '',
-        deduction: 0,
-        check_code: null,
-        check_claim: '',
-      })),
-      score: 7,
-      summary: 'Complete and clean: every case is covered and each step is justified.',
-      idea_used: 'yes',
-      idea_comment: script.ownVersionComment,
-    };
-  }
+  const own = input.steps.some((s) => script.ownVersionSteps.some((o) => squash(o) === squash(s.text)));
+  const texts = own ? script.ownVersionSteps : script.steps;
+  const verdicts = own ? script.ownVersion.verdicts : script.verdicts;
   const steps = input.steps.map((s): FirstPassStep => {
-    const scripted = script.verdicts[script.steps.findIndex((d) => squash(d) === squash(s.text))];
+    const scripted = verdicts[texts.findIndex((d) => squash(d) === squash(s.text))];
     return scripted
       ? { ...scripted, step: s.id }
       : {
@@ -155,10 +145,39 @@ function evaluate(script: DemoScript, input: EvaluateRequest): Evaluation {
           deduction: 0,
           check_code: null,
           check_claim: '',
+          wording: [],
+          improve: '',
         };
   });
+  if (own) {
+    const { score, summary, strengths, improvements } = script.ownVersion;
+    return { steps, score, summary, strengths, improvements };
+  }
   const deductions = steps.reduce((sum, s) => sum + s.deduction, 0);
-  return { steps, score: Math.max(0, 7 - deductions), summary: script.summary, idea_comment: '' };
+  return { steps, score: Math.max(0, 7 - deductions), summary: script.summary, strengths: script.strengths, improvements: script.improvements };
+}
+
+/**
+ * Where the scripted steps are written on the sample photos, so the feedback can mark
+ * them. Only for the sample photos themselves (recognized by their exact size).
+ */
+function stepBoxes(script: DemoScript, own: boolean, images: string[]): (StepBox | null)[] {
+  const file = own ? script.layout.ownVersion : script.layout.solution;
+  const lineGroups = own ? script.layout.ownVersionLines : script.layout.solutionLines;
+  const layout = (sampleLayout as Record<string, { width: number; height: number; lines: Omit<StepBox, 'page'>[] }>)[file];
+  const size = images[0] ? imageSize(images[0]) : null;
+  if (!layout || !size || size.width !== layout.width || size.height !== layout.height) return lineGroups.map(() => null);
+  // Slanted handwriting reaches past the measured line width, so more room left and right.
+  const padX = 0.022;
+  const padY = 0.012;
+  return lineGroups.map((group) => {
+    const lines = group.map((i) => layout.lines[i]);
+    const x0 = Math.min(...lines.map((l) => l.x)) - padX;
+    const y0 = Math.min(...lines.map((l) => l.y)) - padY;
+    const x1 = Math.max(...lines.map((l) => l.x + l.w)) + padX;
+    const y1 = Math.max(...lines.map((l) => l.y + l.h)) + padY;
+    return { page: 0, x: Math.max(0, x0), y: Math.max(0, y0), w: Math.min(1, x1) - Math.max(0, x0), h: Math.min(1, y1) - Math.max(0, y0) };
+  });
 }
 
 /** Finds a scripted solution step; the client may append "(because: …)" to the text. */

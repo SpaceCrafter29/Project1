@@ -37,6 +37,8 @@ test('single-file demo runs from disk without a server', async ({ page }) => {
   await page.getByTestId('confirm-steps-btn').click();
   await expect(page.getByTestId('score')).toHaveText('3–4');
   await expect(page.getByTestId('review-5').getByTestId('check-result')).toContainText('Counterexample found');
+  await expect(page.getByTestId('marked-solution').locator('.mark-box')).toHaveCount(6);
+  await expect(page.getByTestId('review-2').getByTestId('wording')).toContainText('a list is not a statement');
 
   await page.getByTestId('tab-ask').click();
   const canvas = page.getByTestId('pen-page-1').locator('canvas');

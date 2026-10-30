@@ -36,7 +36,18 @@ export interface DemoScript {
   /** First-pass verdict per index of `steps`. */
   verdicts: Record<number, Omit<FirstPassStep, 'step'>>;
   summary: string;
-  ownVersionComment: string;
+  strengths: string[];
+  improvements: string[];
+  /** The correction of the student's own version, judged on its own merits. */
+  ownVersion: {
+    verdicts: Record<number, Omit<FirstPassStep, 'step'>>;
+    score: number;
+    summary: string;
+    strengths: string[];
+    improvements: string[];
+  };
+  /** Which handwritten lines of the sample photos belong to which step (see sampleLayout.json). */
+  layout: { solution: string; solutionLines: number[][]; ownVersion: string; ownVersionLines: number[][] };
   refute(input: RefuteInput): Refutation;
   discuss(input: DiscussRequest): DiscussReply;
   /** Sample answer for a question about a pen marking on the student's photo. */

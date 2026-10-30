@@ -160,15 +160,37 @@ async function main() {
     ['progress.png', handwritten(progressLines)],
     ['geometry-progress.png', handwritten(geometryProgressLines, quadSketch)],
   ];
+  // Where each handwritten line ended up, so the demo can mark steps on the photo.
+  const layout: Record<string, { width: number; height: number; lines: { x: number; y: number; w: number; h: number }[] }> = {};
   for (const [name, html] of pages) {
     const file = path.join(work, name.replace('.png', '.html'));
     writeFileSync(file, html);
     await page.goto(pathToFileURL(file).href);
     await page.evaluate(() => document.fonts.ready);
     await page.locator('.page').screenshot({ path: path.join(out, name) });
+    // Passed as a string: tsx would inject helpers into a function that the page cannot see.
+    layout[name] = await page.evaluate(`(() => {
+      const pageBox = document.querySelector('.page').getBoundingClientRect();
+      const round = (v) => Math.round(v * 1000) / 1000;
+      const lines = [...document.querySelectorAll('.line')].map((line) => {
+        const range = document.createRange();
+        range.selectNodeContents(line);
+        const r = range.getBoundingClientRect();
+        return {
+          x: round((r.left - pageBox.left) / pageBox.width),
+          y: round((r.top - pageBox.top) / pageBox.height),
+          w: round(r.width / pageBox.width),
+          h: round(r.height / pageBox.height),
+        };
+      });
+      return { width: Math.round(pageBox.width), height: Math.round(pageBox.height), lines };
+    })()`);
     console.log(`wrote public/samples/${name}`);
   }
   await browser.close();
+  const handwrittenLayout = Object.fromEntries(Object.entries(layout).filter(([, l]) => l.lines.length > 0));
+  writeFileSync(path.join(root, 'server/llm/mock/sampleLayout.json'), JSON.stringify(handwrittenLayout, null, 1) + '\n');
+  console.log('wrote server/llm/mock/sampleLayout.json');
 }
 
 await main();

@@ -18,8 +18,10 @@ Click **Part (a) done – on to (b)**: part (b) gets its own tips, and the first
 ## 1:15 – Handwritten solution (15 s)
 Photograph the handwritten solution. Show the recognized steps next to the photo and fix a reading error, if there is one.
 
-## 1:30 – Verified feedback (40 s)
-- Step 2 is a **gap**: the pattern is true (the code check confirms it), but the reason is missing.
+## 1:30 – Verified feedback (45 s)
+- Start at **Your solution, marked**: the student's own photo, corrected like a paper. Each step has a box: ✗ error, ? gap, ~ unclear, ✎ wording. Say: "It corrects *my* solution – it doesn't compare it with its own." Tap the ✗ box to jump to its comment.
+- **To improve first** lists the three most important fixes, **What you did well** what to keep.
+- Step 2 is a **gap**: the pattern is true (the code check confirms it), but the reason is missing. The spot is highlighted in the step, **✎ Wording** shows that "2, 4, 1, 2, 4, 1, …" is a list, not a statement, and **How to improve** says what to add.
 - Step 5 is an **error**: the code found a counterexample. Say: "7 is odd and divisible by 7 – checked, not guessed."
 - Step 3 is **unclear**: the first reviewer criticized it, but an independent second check could not confirm the critique, so the app does not call it wrong.
 - Click **I think my step is right** on step 3 and explain. The coach answers: "You are right, I overlooked …". The score rises from 3–4 to 4.

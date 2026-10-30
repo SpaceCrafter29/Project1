@@ -92,7 +92,6 @@ export type RecognizeResponse = Recognition;
 export interface EvaluateRequest {
   problem: string;
   steps: SolutionStep[];
-  intendedIdea?: string;
 }
 export interface EvaluatedStep extends FirstPassStep {
   /** Independent attempt to refute a gap/error critique; null for steps rated valid/unclear. */

@@ -174,7 +174,12 @@ export function AttemptCapture({
           disabled={attempt.steps.every((s) => !s.text.trim())}
           onClick={() => {
             updateAttempt((d) => {
-              d.steps = d.steps.filter((s) => s.text.trim()).map((s, i) => ({ id: `s${i + 1}`, text: s.text.trim() }));
+              const kept = d.steps.filter((s) => s.text.trim());
+              const boxes = d.boxes ?? {};
+              d.boxes = Object.fromEntries(
+                kept.map((s, i) => [`s${i + 1}`, boxes[s.id]] as const).filter(([, box]) => !!box),
+              );
+              d.steps = kept.map((s, i) => ({ id: `s${i + 1}`, text: s.text.trim() }));
               d.unclearSteps = [];
               d.confirmed = true;
             });

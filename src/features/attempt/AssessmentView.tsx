@@ -6,11 +6,12 @@ import { scoreRange } from '../../../shared/verdict';
 import { ChatThread } from '../../components/ChatThread';
 import { CheckResult } from '../../components/CheckResult';
 import { MathText } from '../../components/MathText';
-import { Button, Card, Details, GradeMark, Pill, StatusBadge } from '../../components/ui';
+import { Button, Card, Details, GradeMark, StatusBadge } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
 import { runCheck } from '../../lib/sandbox';
 import type { Attempt, StepReview } from '../../session/types';
 import { finalVerdict, type AttemptUpdater } from './assess';
+import { HighlightedStep, MarkedSolution, type StepMark } from './MarkedSolution';
 
 export function AssessmentView({
   problem,
@@ -41,6 +42,15 @@ export function AssessmentView({
     (acc, f) => ({ ...acc, [f.status]: acc[f.status] + 1 }),
     { valid: 0, gap: 0, error: 0, unclear: 0 } as Record<StepStatusValue, number>,
   );
+  const wordingCount = assessment.steps.reduce((n, s) => n + (s.evaluated.wording?.length ?? 0), 0);
+  const marks: StepMark[] = attempt.steps.flatMap((step, index) => {
+    const i = assessment.steps.findIndex((r) => r.stepId === step.id);
+    if (i < 0) return [];
+    const ev = assessment.steps[i].evaluated;
+    return [{ stepId: step.id, index, status: finals[i].status, wording: ev.wording?.length ?? 0, improve: !!ev.improve }];
+  });
+  const strengths = assessment.strengths ?? [];
+  const improvements = assessment.improvements ?? [];
 
   return (
     <div className="stack" data-testid="assessment">
@@ -56,15 +66,37 @@ export function AssessmentView({
             <span className="tally tally-gap">? {counts.gap} gap</span>
             <span className="tally tally-error">✗ {counts.error} error</span>
             <span className="tally tally-unclear">~ {counts.unclear} unclear</span>
+            <span className="tally tally-wording">✎ {wordingCount} wording</span>
           </p>
-          {assessment.ideaUsed && assessment.ideaUsed !== 'n/a' && (
-            <p className="idea-used" data-testid="idea-used">
-              <strong>Did you use the idea?</strong> <Pill tone={assessment.ideaUsed === 'yes' ? 'good' : 'warn'}>{assessment.ideaUsed}</Pill>{' '}
-              <MathText text={assessment.ideaComment ?? ''} />
-            </p>
-          )}
         </div>
       </Card>
+      {(strengths.length > 0 || improvements.length > 0) && (
+        <div className="overall">
+          {improvements.length > 0 && (
+            <Card title="To improve first" className="improvements" testId="improvements">
+              <ol>
+                {improvements.map((s, i) => (
+                  <li key={i}>
+                    <MathText text={s} />
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          )}
+          {strengths.length > 0 && (
+            <Card title="What you did well" className="strengths" testId="strengths">
+              <ul>
+                {strengths.map((s, i) => (
+                  <li key={i}>
+                    <MathText text={s} />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
+      )}
+      <MarkedSolution attempt={attempt} marks={marks} />
       <p className="muted small">
         A step is only marked as a gap or an error when the coach quotes it, gives concrete evidence, and an independent
         second check could not defend it. Everything doubtful is marked <em>unclear</em>.
@@ -156,27 +188,61 @@ function StepReviewCard({
     }
   };
 
+  const critiqued = final.status === 'gap' || final.status === 'error';
+  const wording = ev.wording ?? [];
+  const quotes = [
+    ...(critiqued && ev.quote ? [{ quote: ev.quote, kind: final.status }] : []),
+    ...wording.map((w) => ({ quote: w.quote, kind: 'wording' })),
+  ];
+
   return (
     <li className={`step-review status-${final.status}`} data-testid={`review-${index + 1}`}>
       <div className="step-review-student">
         <span className="step-label">{index + 1}.</span>
-        <MathText text={stepText} block className="step-text" />
+        <HighlightedStep text={stepText} quotes={quotes} />
       </div>
       <div className="step-review-margin">
         <StatusBadge status={final.status} />
-        {(final.status === 'gap' || final.status === 'error') && ev.quote && (
+        {critiqued && ev.quote && (
           <p className="quote">
             “<MathText text={ev.quote} />”
           </p>
         )}
         <MathText text={final.reason} block />
-        {(final.status === 'gap' || final.status === 'error') && ev.evidence && (
+        {critiqued && ev.evidence && (
           <p className="evidence">
             <strong>Evidence:</strong> <MathText text={ev.evidence} />
           </p>
         )}
         {final.status === 'unclear' && (
           <p className="muted small">The coach is not sure here. Please check this step yourself, or discuss it.</p>
+        )}
+        {wording.length > 0 && (
+          <div className="wording" data-testid="wording">
+            <p className="margin-heading">✎ Wording</p>
+            <ul>
+              {wording.map((w, i) => (
+                <li key={i}>
+                  <span className="hl hl-wording">
+                    <MathText text={w.quote} />
+                  </span>{' '}
+                  – <MathText text={w.issue} />
+                  {w.suggestion && (
+                    <span className="better">
+                      {' '}
+                      Better: <MathText text={w.suggestion} />
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {ev.improve && (
+          <div className="improve" data-testid="improve">
+            <p className="margin-heading">How to improve</p>
+            <MathText text={ev.improve} block />
+          </div>
         )}
         {review.check && <CheckResult run={review.check} compact />}
         <Details summary="Check details" testId="check-details">

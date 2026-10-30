@@ -24,9 +24,10 @@ export function recognizePrompt(input: RecognizeRequest, models: Models): Comple
 - One step = one claim, computation or conclusion, in the student's order. Keep the student's wording and notation; do not fix mistakes, do not fill gaps, do not add steps, do not judge.
 - Formulas in LaTeX ($...$). Crossed-out text is omitted.
 - Set "unclear": true for a step you could not read with confidence, and list illegible fragments in "unreadable".
+- box: where the step is written, so it can be marked on the photo: {"page": <index of the image, from 0>, "x", "y", "w", "h"} as fractions (0 to 1) of that image's width and height, covering all lines of the step. Use null if you cannot tell.
 
 Format:
-{"steps": [{"text": "<step>", "unclear": false}], "unreadable": ["<fragment>"]}`;
+{"steps": [{"text": "<step>", "unclear": false, "box": {"page": 0, "x": 0.1, "y": 0.2, "w": 0.6, "h": 0.08}}], "unreadable": ["<fragment>"]}`;
   return {
     task: 'recognize',
     model: models.fast,
@@ -37,10 +38,7 @@ Format:
 }
 
 export function evaluatePrompt(input: EvaluateRequest, models: Models): CompletionRequest {
-  const idea = input.intendedIdea
-    ? `The student wrote this solution to practice a specific idea: "${input.intendedIdea}". Judge the solution exactly like any other, and additionally report in "idea_used" (yes/partly/no) and "idea_comment" whether that idea is actually used.`
-    : '';
-  const instruction = `Evaluate every step of the student's solution, in order. Start from what the student wrote; do not compare with any other solution.
+  const instruction = `Correct the student's solution like a careful olympiad grader marking a paper with a pen: say what is wrong, what is imprecisely written, and how to improve it. Judge only what the student wrote – never compare it with another solution or with how you would solve it.
 For each step give:
 - status: "valid" (correct and justified by the problem or earlier steps), "gap" (the claim may be true but its justification is missing or incomplete), "error" (the claim is false or the computation is wrong), or "unclear" (you are not sure).
 - quote: for "gap" and "error", the exact words from the step that are problematic, copied verbatim (shorten with "..." if long). Empty for "valid".
@@ -48,20 +46,24 @@ For each step give:
 - evidence: for "error", a concrete counterexample or recomputation; for "gap", the precise inference that is not justified. Without concrete evidence use "unclear" instead.
 - deduction: how many of the 7 points this issue costs (0 for valid).
 - check_code / check_claim: when the step makes a numerically testable claim (always try for "error"), code that tests the STUDENT'S claim and the claim in words.
+- wording: problems of formulation that a grader would mark even if the mathematics is right – an undefined symbol, a missing quantifier ("for all n"), "≡" without the modulus, an equivalence written where only one direction is shown, "it"/"this" without a clear reference, a claim presented as obvious, a sentence that can be read two ways. Each entry: quote (the exact words, verbatim), issue (what is imprecise, one sentence), suggestion (a better formulation of exactly that piece – not a different argument). Only real problems, no matters of taste; an empty list is fine.
+- improve: one concrete suggestion that would make this step stronger or clearer (e.g. "state this as a lemma for all n before using it"), or an empty string if the step is fine as it is.
 Then:
 - score: estimated points 0-7 for the whole solution as it stands, in the style of olympiad grading (an incomplete but correct start can earn partial points).
 - summary: 1-2 sentences, encouraging and honest, without revealing a solution.
+- strengths: 1-3 specific things the student did well (refer to their steps).
+- improvements: the 1-3 changes that would improve this write-up the most, most important first, each one sentence and actionable.
 In case of doubt, choose "unclear" rather than "gap" or "error".
 
 ${CHECK_CODE_RULES}
 
 Format:
-{"steps": [{"step": "<step id, e.g. s1>", "status": "valid|gap|error|unclear", "quote": "", "reason": "", "evidence": "", "deduction": 0, "check_code": null, "check_claim": ""}], "score": 0, "summary": ""${input.intendedIdea ? ', "idea_used": "yes|partly|no", "idea_comment": ""' : ''}}`;
+{"steps": [{"step": "<step id, e.g. s1>", "status": "valid|gap|error|unclear", "quote": "", "reason": "", "evidence": "", "deduction": 0, "check_code": null, "check_claim": "", "wording": [{"quote": "", "issue": "", "suggestion": ""}], "improve": ""}], "score": 0, "summary": "", "strengths": [""], "improvements": [""]}`;
   return {
     task: 'evaluate',
     model: models.fast,
     temperature: 0,
-    messages: messages(COACH_SYSTEM, join(problemBlock(input.problem), stepsBlock(input.steps), idea, instruction)),
+    messages: messages(COACH_SYSTEM, join(problemBlock(input.problem), stepsBlock(input.steps), instruction)),
     input,
   };
 }

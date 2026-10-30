@@ -12,6 +12,7 @@ import type {
   SimpleWords,
   Skeleton,
   SmallCases,
+  StepBox,
   StepStatusValue,
 } from '../../shared/schemas';
 import type { DiscussionOutcome, FinalVerdict } from '../../shared/verdict';
@@ -73,8 +74,9 @@ export interface StepReview {
 export interface Assessment {
   score: number;
   summary: string;
-  ideaUsed?: string;
-  ideaComment?: string;
+  /** What the student did well, and the changes that would improve the write-up most. */
+  strengths: string[];
+  improvements: string[];
   steps: StepReview[];
 }
 
@@ -95,6 +97,8 @@ export interface Attempt {
   unreadable: string[];
   /** Steps the recognizer was unsure about (ids). */
   unclearSteps: string[];
+  /** Where each step is written on the photos, if the recognizer could tell (by step id). */
+  boxes?: Record<string, StepBox>;
   recognized: boolean;
   confirmed: boolean;
   assessment?: Assessment;

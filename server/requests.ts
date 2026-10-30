@@ -29,7 +29,7 @@ export const requestSchemas = {
       .default([]),
   }),
   recognize: z.object({ problem, images, partial: z.boolean().optional(), intendedIdea: z.string().max(1_000).optional() }),
-  evaluate: z.object({ problem, steps, intendedIdea: z.string().max(1_000).optional() }),
+  evaluate: z.object({ problem, steps }),
   discuss: z.object({
     problem,
     steps,

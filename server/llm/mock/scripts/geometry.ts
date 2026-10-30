@@ -117,10 +117,36 @@ return { holds: true, detail: 'Same angles in 2000 random quadrilaterals.' };`,
 
 const FREE = { A: [-6, -3], B: [5, -4], C: [7, 3], D: [-3, 5] } as Record<string, [number, number]>;
 
+const none = { wording: [], improve: '' };
+
 const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
-  0: { status: 'valid', quote: '', reason: 'An auxiliary diagonal – a legitimate construction.', evidence: '', deduction: 0, ...noCheck },
-  1: { status: 'valid', quote: '', reason: 'Midline theorem in triangle ABC (M, N are midpoints of AB, BC).', evidence: '', deduction: 0, ...noCheck },
-  2: { status: 'valid', quote: '', reason: 'Midline theorem in triangle ACD (Q, P are midpoints of AD, CD).', evidence: '', deduction: 0, ...noCheck },
+  0: { status: 'valid', quote: '', reason: 'An auxiliary diagonal – a legitimate construction.', evidence: '', deduction: 0, ...noCheck, ...none },
+  1: {
+    status: 'valid',
+    quote: '',
+    reason: 'Midline theorem in triangle ABC (M, N are midpoints of AB, BC).',
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [
+      {
+        quote: S`$MN$ is a midline`,
+        issue: 'Say of which sides – the reader has to look up where M and N are.',
+        suggestion: S`"$M$ and $N$ are the midpoints of $AB$ and $BC$, so $MN$ is a midline of triangle $ABC$."`,
+      },
+    ],
+    improve: '',
+  },
+  2: {
+    status: 'valid',
+    quote: '',
+    reason: 'Midline theorem in triangle ACD (Q, P are midpoints of AD, CD).',
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [],
+    improve: S`Add that $QP$ and $MN$ point the same way (both from the $A$-side towards $C$) – the next step needs exactly that.`,
+  },
   3: {
     status: 'gap',
     quote: 'hence $MNPQ$ is a parallelogram',
@@ -129,6 +155,14 @@ const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
     deduction: 1,
     check_code: GEO_CODE.parallelSides,
     check_claim: 'Opposite sides of MNPQ are parallel',
+    wording: [
+      {
+        quote: 'hence $MNPQ$ is a parallelogram',
+        issue: 'The criterion you rely on is not named.',
+        suggestion: '"… and a quadrilateral with one pair of opposite sides parallel and equal is a parallelogram."',
+      },
+    ],
+    improve: '',
   },
   4: {
     status: 'error',
@@ -138,6 +172,14 @@ const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
     deduction: 2,
     check_code: GEO_CODE.productOfSides,
     check_claim: 'The area of MNPQ equals MN · NP',
+    wording: [
+      {
+        quote: 'The area of $MNPQ$',
+        issue: 'Later you write [MNPQ] for the same area – use one notation throughout.',
+        suggestion: 'Write [MNPQ] from the start (and say once that [·] means area).',
+      },
+    ],
+    improve: 'Compare MNPQ with the four corner triangles it cuts off from ABCD.',
   },
   5: {
     status: 'error',
@@ -147,6 +189,54 @@ const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
     deduction: 2,
     check_code: GEO_CODE.diagonalFormula,
     check_claim: 'The area of ABCD equals AC · BD / 2',
+    wording: [
+      {
+        quote: S`$MN \cdot NP = \tfrac12 AC \cdot \tfrac12 BD$`,
+        issue: S`$NP = \tfrac12 BD$ is used without saying where it comes from.`,
+        suggestion: S`"… and $NP = \tfrac12 BD$ (midline in triangle $BCD$)."`,
+      },
+    ],
+    improve: '',
+  },
+};
+
+const OWN_VERSION_VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
+  0: { status: 'valid', quote: '', reason: 'Definition of the midpoints as vectors.', evidence: '', deduction: 0, ...noCheck, ...none },
+  1: {
+    status: 'valid',
+    quote: '',
+    reason: 'Correct computation from the previous step.',
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [
+      {
+        quote: S`so $\vec{MN} = \vec{QP}$`,
+        issue: 'Equal vectors give a parallelogram only if M, N, P, Q do not lie on one line – one word on that.',
+        suggestion: '"…, and since M, N, P, Q are not collinear (ABCD is convex), MNPQ is a parallelogram."',
+      },
+    ],
+    improve: '',
+  },
+  2: {
+    status: 'valid',
+    quote: '',
+    reason: 'Correct: the parallelogram is spanned by N − M and Q − M.',
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [],
+    improve: S`Name the formula you use: the parallelogram spanned by $u$ and $v$ has area $|u \times v|$.`,
+  },
+  3: {
+    status: 'gap',
+    quote: S`$[ABCD] = \tfrac12 |(C-A) \times (D-B)|$`,
+    reason: 'This area formula for a quadrilateral is used without proof.',
+    evidence: 'It needs the convexity of ABCD and a short computation, e.g. splitting ABCD along AC.',
+    deduction: 1,
+    ...noCheck,
+    wording: [],
+    improve: S`Split $ABCD$ along $AC$ into two triangles and add their areas – that proves the formula in two lines.`,
   },
 };
 
@@ -402,12 +492,36 @@ export const geometry: DemoScript = {
   ownVersionSteps: OWN_VERSION_STEPS,
   verdicts: VERDICTS,
   summary: 'Part (a) is correct – the midline idea carries. Part (b) uses two area formulas that only hold for special shapes.',
-  ownVersionComment: 'You worked with position vectors throughout – exactly the idea of this approach.',
+  strengths: ['The diagonal AC is exactly the right auxiliary line, and both midline steps are correct.', 'Part (a) is complete in substance.'],
+  improvements: [
+    'Replace both area formulas in (b): compare MNPQ with the four corner triangles instead.',
+    'Name the theorems and criteria you use (midline theorem, parallelogram criterion).',
+    'Use one notation for areas throughout.',
+  ],
+  ownVersion: {
+    verdicts: OWN_VERSION_VERDICTS,
+    score: 6,
+    summary: 'The right idea and almost complete – one area formula still needs a short proof.',
+    strengths: ['Position vectors make part (a) a one-line computation.', 'The area of MNPQ is computed cleanly with the cross product.'],
+    improvements: ['Prove the area formula for ABCD (split along the diagonal AC).', 'Say why M, N, P, Q are not collinear.'],
+  },
+  layout: {
+    solution: 'geometry-solution.png',
+    solutionLines: [[0], [1, 2], [3, 4], [5], [6], [7, 8]],
+    ownVersion: 'geometry-own-version.png',
+    ownVersionLines: [[0], [1], [2, 3], [4]],
+  },
   refute(input) {
     if (/parallelogram/.test(input.critique.quote)) {
       return {
         upheld: false,
         reasoning: S`The critique is not convincing: by steps 2 and 3 both $MN$ and $QP$ equal half of $AC$ as vectors (both point from the $A$-side towards $C$), so $\vec{MN} = \vec{QP}$, which is a standard criterion for a parallelogram.`,
+      };
+    }
+    if (/\\times/.test(input.critique.quote)) {
+      return {
+        upheld: true,
+        reasoning: 'I could not defend the step: the formula is true for convex quadrilaterals, but the step gives no reason for it.',
       };
     }
     return {

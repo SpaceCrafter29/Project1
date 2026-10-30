@@ -189,8 +189,10 @@ export const SOLUTIONS: Solution[] = [
   },
 ];
 
+const none = { wording: [], improve: '' };
+
 const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
-  0: { status: 'valid', quote: '', reason: 'Direct computation, correct.', evidence: '', deduction: 0, ...noCheck },
+  0: { status: 'valid', quote: '', reason: 'Direct computation, correct.', evidence: '', deduction: 0, ...noCheck, ...none },
   1: {
     status: 'gap',
     quote: 'repeat with period 3',
@@ -199,6 +201,14 @@ const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
     deduction: 1,
     check_code: CODE.period,
     check_claim: 'The remainders of 2^n mod 7 follow the pattern 2, 4, 1 for all n',
+    wording: [
+      {
+        quote: S`$2, 4, 1, 2, 4, 1, \dots$`,
+        issue: 'The dots leave the reader to guess the rule – a list is not a statement.',
+        suggestion: S`"For every $n \ge 1$: $2^n \equiv 2, 4, 1 \pmod 7$ when $n \equiv 1, 2, 0 \pmod 3$."`,
+      },
+    ],
+    improve: S`State the key fact as a lemma – "for all $n \ge 1$: $2^{n+3} \equiv 2^n \pmod 7$" – and prove it in one line.`,
   },
   2: {
     status: 'error',
@@ -207,8 +217,31 @@ const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
     evidence: 'The step claims an equivalence but gives no argument that other n fail.',
     deduction: 1,
     ...noCheck,
+    wording: [
+      {
+        quote: S`Answer (a): $n = 3k$`,
+        issue: S`The letter $k$ is never introduced – which values may it take?`,
+        suggestion: S`"Answer (a): exactly the $n = 3k$ with $k$ a positive integer."`,
+      },
+    ],
+    improve: S`Write both directions on their own line: if $3 \mid n$ then …; if $3 \nmid n$ then the remainder is 2 or 4.`,
   },
-  3: { status: 'valid', quote: '', reason: S`Correct: $2^n + 1 \equiv 0 \iff 2^n \equiv -1 \equiv 6 \pmod 7$.`, evidence: '', deduction: 0, ...noCheck },
+  3: {
+    status: 'valid',
+    quote: '',
+    reason: S`Correct: $2^n + 1 \equiv 0 \iff 2^n \equiv -1 \equiv 6 \pmod 7$.`,
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [
+      {
+        quote: 'would mean',
+        issue: '"Would mean" hides that this is an equivalence you rely on later.',
+        suggestion: S`"$7 \mid 2^n + 1 \iff 2^n \equiv -1 \equiv 6 \pmod 7$."`,
+      },
+    ],
+    improve: '',
+  },
   4: {
     status: 'error',
     quote: 'an odd number cannot be divisible by 7',
@@ -217,8 +250,86 @@ const VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
     deduction: 2,
     check_code: CODE.oddMultiples,
     check_claim: 'No odd number is divisible by 7',
+    wording: [],
+    improve: S`Use your remainder list from (a) instead: $2^n \bmod 7$ is always 1, 2 or 4 – so is it ever 6?`,
   },
-  5: { status: 'valid', quote: '', reason: 'Follows from the two previous steps (but see the problem in the step before).', evidence: '', deduction: 0, ...noCheck },
+  5: {
+    status: 'valid',
+    quote: '',
+    reason: 'Follows from the two previous steps (but see the problem in the step before).',
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [
+      {
+        quote: S`So there is no such $n$`,
+        issue: 'The conclusion does not say which statement it proves.',
+        suggestion: S`"Hence $7 \nmid 2^n + 1$ for every positive integer $n$, which proves (b)."`,
+      },
+    ],
+    improve: '',
+  },
+};
+
+const OWN_VERSION_VERDICTS: Record<number, Omit<FirstPassStep, 'step'>> = {
+  0: {
+    status: 'valid',
+    quote: '',
+    reason: 'Division with remainder by 3.',
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [
+      {
+        quote: S`Let $n = 3q + r$`,
+        issue: S`$q$ is not introduced.`,
+        suggestion: S`"Write $n = 3q + r$ with integers $q \ge 0$ and $r \in \{0, 1, 2\}$."`,
+      },
+    ],
+    improve: '',
+  },
+  1: {
+    status: 'valid',
+    quote: '',
+    reason: S`Correct: $2^3 = 8 \equiv 1$, and congruences may be multiplied.`,
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [],
+    improve: S`Say in a few words why $8^q \equiv 1^q$: congruences are compatible with products.`,
+  },
+  2: {
+    status: 'valid',
+    quote: '',
+    reason: S`Follows from the previous step; both directions of (a) are covered by $r = 0, 1, 2$.`,
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [
+      {
+        quote: S`$2^r \in \{1, 2, 4\}$`,
+        issue: S`$2^r$ is one number, not a set – you mean its value for $r = 0, 1, 2$.`,
+        suggestion: S`"For $r = 0, 1, 2$ we get $2^r = 1, 2, 4$."`,
+      },
+    ],
+    improve: '',
+  },
+  3: {
+    status: 'valid',
+    quote: '',
+    reason: S`Correct: the possible remainders of $2^n + 1$ are 2, 3 and 5.`,
+    evidence: '',
+    deduction: 0,
+    ...noCheck,
+    wording: [
+      {
+        quote: S`never $0$`,
+        issue: 'Say "modulo 7", and end with the statement of (b).',
+        suggestion: S`"…, which is never $\equiv 0 \pmod 7$. Hence $7 \nmid 2^n + 1$ for all $n$."`,
+      },
+    ],
+    improve: '',
+  },
 };
 
 export const numberTheory: DemoScript = {
@@ -375,7 +486,28 @@ export const numberTheory: DemoScript = {
   ownVersionSteps: OWN_VERSION_STEPS,
   verdicts: VERDICTS,
   summary: 'Part (a) is essentially right – one step needs a reason. Part (b) uses an argument that does not work yet.',
-  ownVersionComment: S`You reduced the exponent with $2^3 \equiv 1 \pmod 7$ – exactly the idea of this approach.`,
+  strengths: [
+    'You computed the first remainders correctly and spotted the period-3 pattern.',
+    S`Step (b) correctly reduces the question to $2^n \equiv 6 \pmod 7$.`,
+  ],
+  improvements: [
+    S`Prove why the remainders repeat ($2^{n+3} \equiv 2^n \pmod 7$) instead of reading it off a list.`,
+    'Replace the parity argument in (b) by your remainder list from (a).',
+    'Introduce every letter you use (k in the answer) and end each part with a full-sentence conclusion.',
+  ],
+  ownVersion: {
+    verdicts: OWN_VERSION_VERDICTS,
+    score: 7,
+    summary: 'Correct and complete – the remaining marks are about precise wording.',
+    strengths: [S`Reducing the exponent with $2^3 \equiv 1$ settles both parts at once.`, 'The case distinction r = 0, 1, 2 covers both directions of (a).'],
+    improvements: ['Introduce every variable (q) when you first use it.', 'End each part with the statement you proved, in words.'],
+  },
+  layout: {
+    solution: 'solution.png',
+    solutionLines: [[0], [1, 2], [3, 4], [5], [6, 7], [8]],
+    ownVersion: 'own-version.png',
+    ownVersionLines: [[0], [1], [2, 3], [4, 5]],
+  },
   refute(input) {
     if (/exactly when/.test(input.critique.quote)) {
       return {

@@ -140,6 +140,8 @@ export class Coach {
           deduction: 0,
           check_code: null,
           check_claim: '',
+          wording: [],
+          improve: '',
         },
     );
 
