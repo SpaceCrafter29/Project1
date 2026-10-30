@@ -165,6 +165,9 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await expect(thread).toHaveCount(1);
   await thread.getByRole('button', { name: 'Explain this' }).click();
   await expect(thread.locator('.chat-coach')).toContainText('Step a1');
+  // Challenging the marked steps re-runs the independent check on each of them.
+  await thread.getByRole('button', { name: "That's not right?" }).click();
+  await expect(thread.locator('.chat-coach').last()).toContainText(/Re-checked a\d: the step holds/);
   await shot(page, '09-alternatives');
 
   // Submit an own version with the new idea -> same evaluation pipeline

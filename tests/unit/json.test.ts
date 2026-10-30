@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RefutationSchema } from '../../shared/schemas';
-import { ModelOutputError, callJson, extractJson } from '../../server/llm/json';
+import { ModelOutputError, callJson, extractJson, repairLatexEscapes } from '../../server/llm/json';
 import type { CompletionRequest, LLMProvider } from '../../server/llm/types';
 
 describe('extractJson', () => {
@@ -13,6 +13,22 @@ describe('extractJson', () => {
     });
     expect(extractJson('{"tex": "$\\\\frac{1}{2}$"}')).toEqual({ tex: '$\\frac{1}{2}$' });
   });
+  it('repairs LaTeX written with single backslashes', () => {
+    // As a model would emit it: invalid escapes (\p, \m) and LaTeX that collides with JSON escapes (\f, \n, \t).
+    const raw = String.raw`{"a": "$\frac{1}{2} \pmod 7$, $7 \mid n$, $a \neq b$, $\text{odd}$ and $\times$\nNext line\tTab"}`;
+    expect(extractJson(raw)).toEqual({ a: '$\\frac{1}{2} \\pmod 7$, $7 \\mid n$, $a \\neq b$, $\\text{odd}$ and $\\times$\nNext line\tTab' });
+  });
+
+  it('leaves correctly escaped JSON alone', () => {
+    const ok = JSON.stringify({ a: '$\\frac{1}{2}$\nline', b: 'quote " and \\u0041', c: '\u00e9' });
+    expect(repairLatexEscapes(ok)).toBe(ok);
+    expect(extractJson(ok)).toEqual(JSON.parse(ok));
+  });
+
+  it('skips braces in chatter before the JSON', () => {
+    expect(extractJson('The set $\\{1, 2\\}$ matters. {"a": 1}')).toEqual({ a: 1 });
+  });
+
   it('throws when there is no JSON', () => {
     expect(() => extractJson('no json here')).toThrow();
     expect(() => extractJson('{"a": 1')).toThrow();

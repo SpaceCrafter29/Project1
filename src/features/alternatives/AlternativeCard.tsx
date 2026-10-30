@@ -18,6 +18,8 @@ import { RunAssessment } from '../attempt/FeedbackStage';
 
 type AltUpdater = (fn: (a: Alternative) => void) => void;
 
+const CHALLENGE = "That's not right?";
+
 export function AlternativeCard({
   alt,
   decision,
@@ -178,27 +180,55 @@ function SolutionView({
     }
   };
 
+  /** Re-checks one step independently (spec D); code can overrule the verdict into "unclear". */
+  const challengeStep = async (stepId: string, concern: string) => {
+    const result = await api.challenge({ problem, solution: plainSteps, stepId, concern });
+    let check: CheckRun | undefined;
+    if (result.check_code) check = await runCheck(result.check_claim || 'Claim of this step', result.check_code, 'challenge');
+    const holds = check?.outcome.ran ? check.outcome.holds : null;
+    let final = result.verdict;
+    if (final === 'step_flawed' && holds === true) final = 'unclear';
+    if (final === 'step_valid' && holds === false) final = 'unclear';
+    updateAlt((a) => {
+      a.challenges[stepId] = { concern, result, check, final };
+    });
+    return { final, explanation: result.explanation };
+  };
+
   const runChallenge = async () => {
     if (!challenge) return;
     setChallengeBusy(true);
     setChallengeError('');
     try {
-      const result = await api.challenge({ problem, solution: plainSteps, stepId: challenge.stepId, concern: challenge.concern });
-      let check: CheckRun | undefined;
-      if (result.check_code) check = await runCheck(result.check_claim || 'Claim of this step', result.check_code, 'challenge');
-      const holds = check?.outcome.ran ? check.outcome.holds : null;
-      let final = result.verdict;
-      if (final === 'step_flawed' && holds === true) final = 'unclear';
-      if (final === 'step_valid' && holds === false) final = 'unclear';
-      const { stepId, concern } = challenge;
-      updateAlt((a) => {
-        a.challenges[stepId] = { concern, result, check, final };
-      });
+      await challengeStep(challenge.stepId, challenge.concern);
       setChallenge(null);
     } catch (err) {
       setChallengeError(errorMessage(err));
     } finally {
       setChallengeBusy(false);
+    }
+  };
+
+  /** "That's not right?" on a pen marking: re-check every marked step and answer in the thread. */
+  const challengeThread = async (threadId: string, concern: string) => {
+    const thread = alt.threads.find((t) => t.id === threadId)!;
+    setBusyThread(threadId);
+    setThreadError('');
+    updateAlt((a) => {
+      a.threads.find((t) => t.id === threadId)!.messages.push({ role: 'user', text: concern });
+    });
+    try {
+      for (const stepId of thread.stepIds) {
+        const { final, explanation } = await challengeStep(stepId, concern);
+        const verdict = final === 'step_valid' ? 'the step holds' : final === 'step_flawed' ? 'you are right, the step is flawed' : 'not sure';
+        updateAlt((a) => {
+          a.threads.find((t) => t.id === threadId)!.messages.push({ role: 'coach', text: `Re-checked ${stepId}: ${verdict}. ${explanation}` });
+        });
+      }
+    } catch (err) {
+      setThreadError(errorMessage(err));
+    } finally {
+      setBusyThread(null);
     }
   };
 
@@ -267,10 +297,10 @@ function SolutionView({
                 <button
                   type="button"
                   className="link"
-                  onClick={() => setChallenge({ stepId: s.id, concern: "That's not right?" })}
+                  onClick={() => setChallenge({ stepId: s.id, concern: CHALLENGE })}
                   data-testid={`challenge-${s.id}`}
                 >
-                  That's not right?
+                  {CHALLENGE}
                 </button>
               </div>
               {challenge?.stepId === s.id && (
@@ -319,10 +349,10 @@ function SolutionView({
             >
               <ChatThread
                 messages={t.messages}
-                onSend={(q) => void ask(t.id, q)}
+                onSend={(q) => void (q === CHALLENGE ? challengeThread(t.id, q) : ask(t.id, q))}
                 busy={busyThread === t.id}
                 error={t.id === activeThread ? threadError : undefined}
-                quickActions={t.messages.length === 0 ? ['Explain this', 'Why does this follow?'] : []}
+                quickActions={t.messages.length === 0 ? ['Explain this', 'Why does this follow?', CHALLENGE] : [CHALLENGE]}
                 placeholder="Ask about these steps…"
               />
             </Card>

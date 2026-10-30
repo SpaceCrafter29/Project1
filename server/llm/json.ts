@@ -12,31 +12,66 @@ export class ModelOutputError extends Error {
   }
 }
 
-/** Finds the first complete JSON object/array in a text (handles ```json fences and chatter). */
-export function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    // fall through
-  }
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) {
-    try {
-      return JSON.parse(fenced[1]);
-    } catch {
-      // fall through
+// LaTeX commands that start with a valid JSON escape letter (\b \f \n \r \t). Models often
+// forget to double the backslash, which would silently turn "\frac" into a form feed + "rac".
+const LATEX_AFTER_ESCAPE =
+  /^(?:b(?:eta|inom|mod|ar|ig|igl|igr|igg|oxed|ullet|ot|egin|ackslash)|f(?:rac|orall|lat|rak|rown)|n(?:eq|abla|ot|otin|u|mid|e|ewline|exists|i|eg|leq|geq|parallel|subseteq)|r(?:ight|angle|ho|floor|ceil|brace|vert|Vert)|t(?:imes|ext|extbf|extit|au|heta|o|frac|ilde|riangle|op|imes))(?![a-zA-Z])/;
+
+/**
+ * Doubles backslashes inside JSON strings that are not valid escapes, or that are
+ * the start of a LaTeX command (e.g. \frac, \neq). Leaves everything else unchanged.
+ */
+export function repairLatexEscapes(raw: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (!inString) {
+      if (ch === '"') inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === '"') {
+      inString = false;
+      out += ch;
+      continue;
+    }
+    if (ch !== '\\') {
+      out += ch;
+      continue;
+    }
+    const next = raw[i + 1] ?? '';
+    if (next === '\\' || next === '"' || next === '/') {
+      out += ch + next;
+      i++;
+    } else if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(raw.slice(i + 2, i + 6))) {
+      out += ch;
+    } else if ('bfnrt'.includes(next) && next !== '' && !LATEX_AFTER_ESCAPE.test(raw.slice(i + 1))) {
+      out += ch;
+    } else {
+      out += '\\\\';
     }
   }
-  const start = trimmed.search(/[[{]/);
-  if (start < 0) throw new Error('no JSON found');
-  const open = trimmed[start];
+  return out;
+}
+
+function parse(text: string): unknown {
+  try {
+    return JSON.parse(repairLatexEscapes(text));
+  } catch {
+    return JSON.parse(text);
+  }
+}
+
+/** Balanced {...} or [...] starting at `start`, or null. */
+function balanced(text: string, start: number): string | null {
+  const open = text[start];
   const close = open === '{' ? '}' : ']';
   let depth = 0;
   let inString = false;
   let escaped = false;
-  for (let i = start; i < trimmed.length; i++) {
-    const ch = trimmed[i];
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
     if (inString) {
       if (escaped) escaped = false;
       else if (ch === '\\') escaped = true;
@@ -45,11 +80,40 @@ export function extractJson(text: string): unknown {
     }
     if (ch === '"') inString = true;
     else if (ch === open) depth++;
-    else if (ch === close && --depth === 0) {
-      return JSON.parse(trimmed.slice(start, i + 1));
+    else if (ch === close && --depth === 0) return text.slice(start, i + 1);
+  }
+  return null;
+}
+
+/** Finds the first complete JSON object/array in a text (handles ```json fences, chatter and unescaped LaTeX). */
+export function extractJson(text: string): unknown {
+  const trimmed = text.trim();
+  try {
+    return parse(trimmed);
+  } catch {
+    // fall through
+  }
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) {
+    try {
+      return parse(fenced[1]);
+    } catch {
+      // fall through
     }
   }
-  throw new Error('unterminated JSON');
+  let attempts = 0;
+  for (let i = 0; i < trimmed.length && attempts < 20; i++) {
+    if (trimmed[i] !== '{' && trimmed[i] !== '[') continue;
+    attempts++;
+    const candidate = balanced(trimmed, i);
+    if (!candidate) continue;
+    try {
+      return parse(candidate);
+    } catch {
+      // try the next opening bracket
+    }
+  }
+  throw new Error('no JSON found');
 }
 
 export interface UsageSink {
