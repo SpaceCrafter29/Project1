@@ -71,6 +71,22 @@ export function MarkableSteps<T extends { id: string }>({
     const y0 = Math.min(...s.map((p) => p.y));
     const y1 = Math.max(...s.map((p) => p.y));
     const origin = box.getBoundingClientRect();
+    // Show the selection as a rounded box through the stroke's extreme points for a moment.
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) {
+      const r = Math.min(14, (x1 - x0) / 2, (y1 - y0) / 2);
+      ctx.strokeStyle = 'rgba(224, 168, 0, 0.95)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x0 + r, y0);
+      ctx.arcTo(x1, y0, x1, y1, r);
+      ctx.arcTo(x1, y1, x0, y1, r);
+      ctx.arcTo(x0, y1, x0, y0, r);
+      ctx.arcTo(x0, y0, x1, y0, r);
+      ctx.closePath();
+      ctx.stroke();
+      setTimeout(draw, 600);
+    }
     const hits = [...box.querySelectorAll<HTMLElement>('[data-step-id]')]
       .filter((el) => {
         const r = el.getBoundingClientRect();

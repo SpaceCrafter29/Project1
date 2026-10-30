@@ -135,3 +135,42 @@ describe('tip loop over the API', () => {
     expect(read.steps.at(-1).text).toContain('Conjecture');
   });
 });
+
+describe('tip loop with parts', () => {
+  it('opens part (b) by asking how to apply what was learned in (a)', async () => {
+    const { numberTheory } = await import('../../server/llm/mock/scripts/numberTheory');
+    const res = await post('nexthint', {
+      problem: DEMO_PROBLEM,
+      progress: [],
+      previousProgress: [],
+      note: '',
+      history: [],
+      part: { label: 'b', text: 'Prove that there is no positive integer n …' },
+      earlierParts: [{ label: 'a', work: numberTheory.progressSteps }],
+    });
+    const tip = await res.json();
+    expect(tip.status).toBe('not_started');
+    expect(tip.hint).toContain('How can you apply what you learned in (a)');
+  });
+
+  it('puts part and earlier work into the prompt', async () => {
+    const { nextHintPrompt } = await import('../../server/prompts/problem');
+    const prompt = JSON.stringify(
+      nextHintPrompt(
+        {
+          problem: 'P',
+          progress: [],
+          previousProgress: [],
+          note: '',
+          history: [],
+          part: { label: 'b', text: 'Show B.' },
+          earlierParts: [{ label: 'a', work: ['x = 1'] }],
+        },
+        { fast: 'f', solver: 's', verifier: 'v' },
+      ).messages,
+    );
+    expect(prompt).toContain('CURRENT PART: (b) Show B.');
+    expect(prompt).toContain('(a) x = 1');
+    expect(prompt).toContain('keep the parts clearly separate');
+  });
+});

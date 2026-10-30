@@ -369,6 +369,35 @@ export const geometry: DemoScript = {
         : noCheck),
     };
   },
+  laterPartHint(input, level) {
+    if (input.progress.length === 0 && input.history.length === 0) {
+      return {
+        progress: '',
+        status: 'not_started',
+        hint: 'In (a) you worked with midlines through a diagonal. How can you use what you learned in (a) for the areas? Look at the pieces that MNPQ cuts off from ABCD.',
+        question: 'How does triangle AMQ compare with triangle ABD?',
+        level: 1,
+        tool: 'none',
+        focus_step: null,
+        ...noCheck,
+      };
+    }
+    const hints = [
+      'Compare each corner triangle with a triangle that uses a diagonal of ABCD.',
+      S`Triangle $AMQ$ is triangle $ABD$ shrunk by $\tfrac12$ from $A$. What does that do to its area?`,
+      S`So $[AMQ] = \tfrac14 [ABD]$. Do the same at all four corners and add up – the corners make up half of $[ABCD]$.`,
+    ];
+    return {
+      progress: level === 1 && input.progress.length > 0 ? 'You started on the areas.' : '',
+      status: level === 1 ? 'on_track' : 'stuck',
+      hint: hints[level - 1],
+      question: 'Which two triangles together make up ABCD?',
+      level,
+      tool: 'none',
+      focus_step: null,
+      ...noCheck,
+    };
+  },
   steps: GEOMETRY_STEPS,
   ownVersionSteps: OWN_VERSION_STEPS,
   verdicts: VERDICTS,

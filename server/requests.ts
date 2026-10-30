@@ -22,6 +22,11 @@ export const requestSchemas = {
     previousProgress: z.array(step).max(80).default([]),
     note: z.string().max(2_000).default(''),
     history: z.array(z.object({ hint: z.string().max(5_000), level: z.number().int().min(1).max(3) })).max(30).default([]),
+    part: z.object({ label: z.string().max(4), text: z.string().max(5_000) }).nullish(),
+    earlierParts: z
+      .array(z.object({ label: z.string().max(4), work: z.array(z.string().max(5_000)).max(80) }))
+      .max(10)
+      .default([]),
   }),
   recognize: z.object({ problem, images, partial: z.boolean().optional(), intendedIdea: z.string().max(1_000).optional() }),
   evaluate: z.object({ problem, steps, intendedIdea: z.string().max(1_000).optional() }),

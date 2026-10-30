@@ -70,8 +70,12 @@ export interface NextHintRequest {
   previousProgress: SolutionStep[];
   /** Optional words from the student, e.g. where they are stuck. */
   note: string;
-  /** Tips given so far, oldest first. */
+  /** Tips given so far for this part, oldest first. */
   history: { hint: string; level: number }[];
+  /** The part being worked on, if the problem has parts (a), (b), … */
+  part?: { label: string; text: string } | null;
+  /** The student's latest work on the earlier parts, so a tip can build on it. */
+  earlierParts?: { label: string; work: string[] }[];
 }
 export type NextHintResponse = NextHint;
 

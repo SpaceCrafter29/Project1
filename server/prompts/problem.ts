@@ -86,6 +86,18 @@ export function nextHintPrompt(input: NextHintRequest, models: Models): Completi
     ? stepsBlock(input.progress, "STUDENT'S CURRENT WORK (from their latest photo, confirmed by them; may be unfinished)")
     : "STUDENT'S CURRENT WORK: nothing written yet.";
   const note = input.note.trim() ? `STUDENT'S NOTE: """${input.note.trim()}"""` : '';
+  const part = input.part
+    ? `CURRENT PART: (${input.part.label}) ${input.part.text}\nThe student is working on this part only.`
+    : '';
+  const earlier = input.earlierParts?.length
+    ? `STUDENT'S WORK ON EARLIER PARTS:\n${input.earlierParts
+        .map((p) => `(${p.label}) ${p.work.length ? p.work.join(' | ') : '(nothing written)'}`)
+        .join('\n')}`
+    : '';
+  const partRules = input.part
+    ? `
+- Parts: coach only the CURRENT PART and keep the parts clearly separate – no tips about other parts, unless combining them is clearly worth it. When the student starts a new part and a result or idea from an earlier part helps, invite them to use it as a question (e.g. "How can you apply what you found in (a) here?") without spelling out how.`
+    : '';
   const instruction = `The student works on paper and photographs their progress; after each photo you give exactly ONE next tip, tailored to where they are. Rules:
 - progress: first acknowledge concretely what they have already achieved (one sentence, refer to their steps). Empty if they have nothing yet.
 - hint: find the single most important next thing (the next idea, the first gap, or a wrong turn) and give the smallest nudge that lets them continue ON THEIR OWN. Never write out the solution, a proof step or the final answer.
@@ -95,7 +107,7 @@ export function nextHintPrompt(input: NextHintRequest, models: Models): Completi
 - question: one question they can think about while working.
 - tool: optionally attach ONE tool that helps right now – "simple_words" (they do not understand the statement), "given_wanted" (they lose track of what is given and asked), "small_cases" (they need data or an experiment; for geometry this is an interactive figure), "method" (they need a general method), "skeleton" (they have the ideas but no structure) – or "none". Do not attach a tool you already effectively gave.
 - status: "not_started", "on_track", "stuck", "off_track", or "complete" (their work looks like a complete solution: then the tip says so and suggests submitting it for the full check; you may still name one thing to double-check).
-- focus_step: the id of the step your tip is about, or null.
+- focus_step: the id of the step your tip is about, or null.${partRules}
 
 ${CHECK_CODE_RULES}
 
@@ -105,7 +117,7 @@ Format:
     task: 'nexthint',
     model: models.fast,
     temperature: 0.3,
-    messages: messages(COACH_SYSTEM, join(problemBlock(input.problem), history, previous, current, note, instruction)),
+    messages: messages(COACH_SYSTEM, join(problemBlock(input.problem), part, earlier, history, previous, current, note, instruction)),
     input,
   };
 }

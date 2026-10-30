@@ -48,7 +48,10 @@ export async function cropDataUrl(dataUrl: string, box: { x: number; y: number; 
   return toJpeg(img, box.x, box.y, box.w, box.h, 1200, 0.9);
 }
 
-/** Bounding box of a stroke plus a margin, clamped to the image. */
+/**
+ * The box through the topmost, bottommost, leftmost and rightmost point of a stroke,
+ * with a small margin, clamped to the image. The student can adjust it afterwards.
+ */
 export function strokeBox(
   stroke: { x: number; y: number }[],
   width: number,
@@ -56,7 +59,7 @@ export function strokeBox(
 ): { x: number; y: number; w: number; h: number } {
   const xs = stroke.map((p) => p.x);
   const ys = stroke.map((p) => p.y);
-  const margin = Math.max(24, 0.04 * Math.max(width, height));
+  const margin = Math.max(8, 0.012 * Math.max(width, height));
   const x0 = Math.max(0, Math.min(...xs) - margin);
   const y0 = Math.max(0, Math.min(...ys) - margin);
   const x1 = Math.min(width, Math.max(...xs) + margin);

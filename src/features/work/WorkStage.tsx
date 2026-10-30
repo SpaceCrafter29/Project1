@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SolutionStep } from '../../../shared/api';
+import { parseParts } from '../../../shared/parts';
 import { CheckResult } from '../../components/CheckResult';
 import { ImageInput } from '../../components/ImageInput';
 import { MathText } from '../../components/MathText';
@@ -17,17 +18,32 @@ import { HintToolView } from './HintTool';
 
 const LEVEL = { 1: 'a direction', 2: 'more concrete', 3: 'very concrete' } as const;
 
-/** Problems whose first tip is being requested, so a remount does not ask twice. */
+/** Parts whose first tip is being requested, so a remount does not ask twice. */
 const openingInFlight = new Set<string>();
 
 /**
  * The tip loop: one tip, work on paper, photograph the progress, get the next tip –
  * made for exactly where the student is – until they submit a full solution.
+ * Problems with parts (a), (b), … get one loop per part.
  */
 export function WorkStage({ session, update, go }: StageProps) {
   const config = useConfig();
   const problem = problemText(session.problem!);
-  const rounds = session.coaching ?? [];
+  const { parts } = useMemo(() => parseParts(session.problem!.transcript), [session.problem]);
+  const multi = parts.length >= 2;
+  const allRounds = session.coaching ?? [];
+  const partOf = (r: CoachingRound) => r.part ?? (multi ? parts[0].label : '');
+  const lastOf = (label: string) => allRounds.filter((r) => partOf(r) === label).at(-1);
+  const done = session.partsDone ?? [];
+  const active = !multi
+    ? ''
+    : parts.some((p) => p.label === session.activePart)
+      ? session.activePart!
+      : (parts.find((p) => !done.includes(p.label)) ?? parts[parts.length - 1]).label;
+  const activeIndex = parts.findIndex((p) => p.label === active);
+  const activePart = multi ? parts[activeIndex] : null;
+  const nextPart = multi ? parts[activeIndex + 1] : undefined;
+  const rounds = allRounds.filter((r) => partOf(r) === active);
   const last = rounds[rounds.length - 1];
   const [images, setImages] = useState<string[]>([]);
   const [note, setNote] = useState('');
@@ -46,9 +62,23 @@ export function WorkStage({ session, update, go }: StageProps) {
         previousProgress: last?.steps ?? [],
         note: note.trim(),
         history: rounds.map((r) => ({ hint: r.hint.hint, level: r.hint.level })),
+        part: activePart,
+        earlierParts: parts.slice(0, Math.max(0, activeIndex)).map((p) => ({
+          label: p.label,
+          work: (lastOf(p.label)?.steps ?? []).map((s) => s.text),
+        })),
       });
       const check = hint.check_code ? await runCheck(hint.check_claim || 'A claim in your work', hint.check_code, 'tip') : undefined;
-      const round: CoachingRound = { id: uid('r_'), createdAt: Date.now(), images: progressImages, steps, note: note.trim(), hint, check };
+      const round: CoachingRound = {
+        id: uid('r_'),
+        createdAt: Date.now(),
+        part: active,
+        images: progressImages,
+        steps,
+        note: note.trim(),
+        hint,
+        check,
+      };
       update((d) => {
         d.coaching = [...(d.coaching ?? []), round];
       });
@@ -63,10 +93,28 @@ export function WorkStage({ session, update, go }: StageProps) {
   };
 
   useEffect(() => {
-    if (rounds.length > 0 || openingInFlight.has(session.id)) return;
-    openingInFlight.add(session.id);
-    void requestTip([], []).finally(() => openingInFlight.delete(session.id));
-  }, [session.id]);
+    const key = `${session.id}:${active}`;
+    if (rounds.length > 0 || openingInFlight.has(key)) return;
+    openingInFlight.add(key);
+    void requestTip([], []).finally(() => openingInFlight.delete(key));
+  }, [session.id, active]);
+
+  const switchPart = (label: string) => {
+    setDraft(null);
+    setImages([]);
+    setNote('');
+    setError('');
+    update((d) => {
+      d.activePart = label;
+    });
+  };
+
+  const finishPart = () => {
+    update((d) => {
+      d.partsDone = [...new Set([...(d.partsDone ?? []), active])];
+    });
+    if (nextPart) switchPart(nextPart.label);
+  };
 
   useEffect(() => {
     if (rounds.length > 1) latestTip.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -91,11 +139,15 @@ export function WorkStage({ session, update, go }: StageProps) {
     void requestTip(images, steps);
   };
 
-  /** A complete attempt from the loop goes straight to the full check, without photographing it again. */
+  /**
+   * A complete attempt from the loop goes straight to the full check, without photographing
+   * it again. With parts, the latest work on every part is combined.
+   */
   const submitRound = (round: CoachingRound) => {
+    const sources = multi ? parts.map((p) => lastOf(p.label)).filter((r): r is CoachingRound => !!r) : [round];
     const attempt = newAttempt(
-      round.images,
-      round.steps.map((s) => ({ text: s.text, unclear: false })),
+      [...new Set(sources.flatMap((r) => r.images))],
+      sources.flatMap((r) => r.steps).map((s) => ({ text: s.text, unclear: false })),
       [],
     );
     attempt.confirmed = true;
@@ -110,6 +162,28 @@ export function WorkStage({ session, update, go }: StageProps) {
   return (
     <div className="stack">
       <ProblemCard problem={session.problem!} />
+      {multi && activePart && (
+        <div className="part-focus" data-testid="part-focus">
+          <nav className="part-tabs" aria-label="Parts of the problem">
+            {parts.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                className={`part-tab ${p.label === active ? 'active' : ''} ${done.includes(p.label) ? 'done' : ''}`}
+                aria-current={p.label === active ? 'step' : undefined}
+                onClick={() => switchPart(p.label)}
+                data-testid={`part-${p.label}`}
+              >
+                Part ({p.label}){done.includes(p.label) ? ' ✓' : ''}
+              </button>
+            ))}
+          </nav>
+          <div className="part-statement">
+            <span className="part-label">({activePart.label})</span>
+            <MathText text={activePart.text} />
+          </div>
+        </div>
+      )}
       <p className="lead">
         Work on paper as far as you can. Whenever you are stuck – or want to know whether you are on track – photograph
         your work. The next tip is made for exactly where you are, and it never gives the answer away.
@@ -183,7 +257,7 @@ export function WorkStage({ session, update, go }: StageProps) {
       </ol>
 
       {rounds.length === 0 && (
-        <Card title="Your first tip">
+        <Card title={multi ? `Your first tip for part (${active})` : 'Your first tip'}>
           {error ? (
             <ErrorBox message={error} onRetry={() => void requestTip([], [])} />
           ) : (
@@ -193,7 +267,7 @@ export function WorkStage({ session, update, go }: StageProps) {
       )}
 
       {rounds.length > 0 && (
-        <Card title="Your turn" className="your-turn" testId="your-turn">
+        <Card title={multi ? `Your turn – part (${active})` : 'Your turn'} className="your-turn" testId="your-turn">
           {draft ? (
             <div data-testid="progress-confirm">
               <p className="muted">Did I read your work correctly? Fix reading errors only – the tip is based on this.</p>
@@ -279,6 +353,11 @@ export function WorkStage({ session, update, go }: StageProps) {
                   Tip without a new photo
                 </Button>
               </>
+            )}
+            {nextPart && (
+              <Button variant="ghost" onClick={finishPart} data-testid="next-part">
+                Part ({active}) done – on to ({nextPart.label})
+              </Button>
             )}
             <Button variant="ghost" onClick={() => go('solution')} data-testid="go-solve">
               I'm done – check my full solution

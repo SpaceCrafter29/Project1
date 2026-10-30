@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ChatTurn } from '../../../shared/api';
 import type { StepStatusValue } from '../../../shared/schemas';
+import { parseParts, partOfStep } from '../../../shared/parts';
 import { scoreRange } from '../../../shared/verdict';
 import { ChatThread } from '../../components/ChatThread';
 import { CheckResult } from '../../components/CheckResult';
@@ -26,6 +27,16 @@ export function AssessmentView({
     assessment.score,
     assessment.steps.map((s, i) => ({ firstPass: s.evaluated, final: finals[i] })),
   );
+  // With parts (a), (b), … the steps are grouped under a heading per part.
+  const { parts } = parseParts(problem);
+  const partHeadings: (string | null)[] = [];
+  let currentPart = parts[0]?.label ?? null;
+  let shown: string | null = null;
+  for (const step of attempt.steps) {
+    currentPart = partOfStep(step.text) ?? currentPart;
+    partHeadings.push(parts.length >= 2 && currentPart !== shown ? currentPart : null);
+    shown = currentPart;
+  }
   const counts = finals.reduce(
     (acc, f) => ({ ...acc, [f.status]: acc[f.status] + 1 }),
     { valid: 0, gap: 0, error: 0, unclear: 0 } as Record<StepStatusValue, number>,
@@ -62,7 +73,13 @@ export function AssessmentView({
         {attempt.steps.map((step, i) => {
           const review = assessment.steps.find((r) => r.stepId === step.id);
           if (!review) return null;
-          return (
+          const heading = partHeadings[i];
+          return [
+            heading && (
+              <li key={`part-${heading}`} className="part-heading" data-testid={`part-heading-${heading}`}>
+                <span>Part ({heading})</span>
+              </li>
+            ),
             <StepReviewCard
               key={step.id}
               index={i}
@@ -76,8 +93,8 @@ export function AssessmentView({
                   fn(r as StepReview);
                 })
               }
-            />
-          );
+            />,
+          ];
         })}
       </ol>
     </div>

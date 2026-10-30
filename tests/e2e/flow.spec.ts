@@ -12,15 +12,18 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: true });
 }
 
-/** Draws a closed loop around the given box (fractions of the element's size). */
+/** Draws a wobbly freehand loop around the given box (fractions of the element's size), like a hand would. */
 async function circle(page: Page, target: Locator, box: { x0: number; y0: number; x1: number; y1: number }) {
   const r = (await target.boundingBox())!;
   const pts: [number, number][] = [];
-  for (let i = 0; i <= 24; i++) {
-    const t = (i / 24) * 2 * Math.PI;
+  for (let i = 0; i <= 28; i++) {
+    const t = (i / 24) * 2 * Math.PI; // a bit more than one turn, like a real circling stroke
+    const wobble = 1 + 0.12 * Math.sin(5 * t) + 0.06 * Math.cos(3 * t);
     const cx = (box.x0 + box.x1) / 2;
     const cy = (box.y0 + box.y1) / 2;
-    pts.push([r.x + r.width * (cx + ((box.x1 - box.x0) / 2) * Math.cos(t)), r.y + r.height * (cy + ((box.y1 - box.y0) / 2) * Math.sin(t))]);
+    const fx = cx + ((box.x1 - box.x0) / 2) * wobble * Math.cos(t);
+    const fy = cy + ((box.y1 - box.y0) / 2) * wobble * Math.sin(t);
+    pts.push([r.x + r.width * Math.min(0.99, Math.max(0.01, fx)), r.y + r.height * Math.min(0.99, Math.max(0.01, fy))]);
   }
   await page.mouse.move(...pts[0]);
   await page.mouse.down();
@@ -74,6 +77,19 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await expect(tip3).toContainText('I still do not see why it repeats.');
   await shot(page, '03-tips');
 
+  // Parts are coached separately; part (b) starts by asking how to use what was found in (a).
+  await expect(page.getByTestId('part-focus')).toContainText('Find all positive integers');
+  await page.getByTestId('next-part').click();
+  await expect(page.getByTestId('part-focus')).toContainText('Prove that there is no positive integer');
+  await expect(page.getByTestId('part-a')).toContainText('✓');
+  const tipB = page.getByTestId('tip-1');
+  await expect(tipB).toContainText('How can you apply what you learned in (a) here?');
+  await expect(page.getByTestId('tip-2')).toHaveCount(0);
+  await page.getByTestId('part-a').click();
+  await expect(page.getByTestId('tip-3')).toContainText('more concrete');
+  await page.getByTestId('part-b').click();
+  await shot(page, '03b-part-b');
+
   // 3./4. Solution photo + recognition confirmation
   await page.getByTestId('go-solve').click();
   await page.getByTestId('attempt-images-file').setInputFiles(path.join(samples, 'solution.png'));
@@ -94,6 +110,8 @@ test('full coaching flow in demo mode', async ({ page }) => {
   await expect(page.getByTestId('review-5')).toContainText('error');
   await expect(page.getByTestId('review-5').getByTestId('check-result')).toContainText('Counterexample found');
   await expect(page.getByTestId('review-5')).toContainText(/Counterexample found\s*7 is odd and divisible by 7/);
+  await expect(page.getByTestId('part-heading-a')).toBeVisible();
+  await expect(page.getByTestId('part-heading-b')).toBeVisible();
   await shot(page, '05-feedback');
 
   // Discussion mode: the coach concedes step 3 -> valid, score rises.
@@ -123,6 +141,16 @@ test('full coaching flow in demo mode', async ({ page }) => {
   const annotation = page.getByTestId('annotation-1');
   await expect(annotation).toBeVisible();
   await expect(annotation.locator('img.crop')).toBeVisible();
+  // The freehand loop became a rounded crop frame; dragging a corner re-crops.
+  const frame = page.getByTestId('pen-page-1').getByTestId('lens-box');
+  await expect(frame).toBeVisible();
+  const cropBefore = await annotation.locator('img.crop').getAttribute('src');
+  const corner = (await frame.getByTestId('lens-corner-br').boundingBox())!;
+  await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(corner.x + corner.width / 2 + 60, corner.y + corner.height / 2 + 35, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => annotation.locator('img.crop').getAttribute('src')).not.toBe(cropBefore);
   await annotation.getByRole('button', { name: 'Explain this' }).click();
   await expect(annotation.locator('.chat-coach')).toContainText('remainders');
   await circle(page, canvas, { x0: 0.08, y0: 0.68, x1: 0.6, y1: 0.82 });

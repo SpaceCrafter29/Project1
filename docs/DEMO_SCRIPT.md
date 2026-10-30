@@ -13,6 +13,8 @@ Paste a screenshot of IMO 1964 Problem 1. The coach transcribes it and asks: *Di
 ## 0:40 – The tip loop (35 s)
 The first tip appears by itself: "work with remainders". It comes with a table that code computed in the browser, not the model. Show a photo of unfinished work (remainders 2, 4, 1, … and a conjecture) and confirm what was read. The next tip starts from *your* work: "You computed the remainders and stated a conjecture" (code tested it for 5000 values), then "a pattern is not a proof yet". Write "I still don't see why it repeats" and ask again without a photo: the tip gets more concrete (compare $2^{n+3}$ with $2^n$), but it still doesn't give the answer away.
 
+Click **Part (a) done – on to (b)**: part (b) gets its own tips, and the first one asks how you can use what you found in (a).
+
 ## 1:15 – Handwritten solution (15 s)
 Photograph the handwritten solution. Show the recognized steps next to the photo and fix a reading error, if there is one.
 
@@ -23,7 +25,7 @@ Photograph the handwritten solution. Show the recognized steps next to the photo
 - Click **I think my step is right** on step 3 and explain. The coach answers: "You are right, I overlooked …". The score rises from 3–4 to 4.
 
 ## 2:10 – Pen and repair (25 s)
-Circle step 2 on the photo, then tap **Explain this**. On **Fix your approach**, show the card for part (b): it breaks at step 5, with the repair hints revealed in two levels.
+Circle step 2 on the photo freehand. It turns into a rounded crop frame; drag a corner to fit it, then tap **Explain this**. On **Fix your approach**, show the card for part (b): it breaks at step 5, with the repair hints revealed in two levels.
 
 ## 2:35 – Learn other approaches (25 s)
 Open **Other approaches** and walk through the three ideas:

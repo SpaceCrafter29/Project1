@@ -116,7 +116,8 @@ function nextHint(script: DemoScript, input: NextHintRequest) {
     input.progress.every((s, i) => squash(s.text) === squash(input.previousProgress[i].text));
   const last = input.history[input.history.length - 1];
   const level = (last && same ? Math.min(3, last.level + 1) : 1) as 1 | 2 | 3;
-  return script.nextHint(input, level);
+  const later = input.part && input.part.label !== 'a';
+  return later ? script.laterPartHint(input, level) : script.nextHint(input, level);
 }
 
 function evaluate(script: DemoScript, input: EvaluateRequest): Evaluation {

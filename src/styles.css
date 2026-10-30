@@ -1886,3 +1886,148 @@ blockquote {
     font-size: 1.9rem;
   }
 }
+
+/* ---------- Problem parts ---------- */
+
+.part-focus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.part-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.part-tab {
+  padding: 0.35rem 1rem;
+  border: 2px solid var(--yellow-line);
+  border-radius: var(--sketch-sm);
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.part-tab.active {
+  border-color: var(--yellow-deep);
+  background: var(--yellow);
+  color: var(--ink-strong);
+}
+
+.part-tab.done:not(.active) {
+  border-style: dashed;
+  color: var(--ink-faint);
+}
+
+.part-statement {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.8rem 1rem;
+  border-left: 5px solid var(--yellow-deep);
+  background: #fff;
+  font-size: 1.08rem;
+  color: var(--ink-strong);
+}
+
+.part-label {
+  font-weight: 700;
+}
+
+.part-heading {
+  margin: 0.6rem 0 -0.2rem;
+  font-size: 1.05rem;
+  list-style: none;
+}
+
+.part-heading span {
+  background: linear-gradient(transparent 55%, var(--marker) 55%);
+  padding: 0 0.2em;
+}
+
+/* ---------- Crop frame for pen markings (like a lens selection) ---------- */
+
+.lens-box {
+  position: absolute;
+  z-index: 2;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 9999px rgba(31, 31, 31, 0.32),
+    inset 0 0 0 1px rgba(31, 31, 31, 0.15);
+  cursor: move;
+  touch-action: none;
+}
+
+.lens-corner {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 0 solid var(--yellow);
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.35));
+  touch-action: none;
+}
+
+.lens-corner::after {
+  /* bigger invisible grab area */
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+.lens-corner.tl {
+  top: -7px;
+  left: -7px;
+  border-top-width: 6px;
+  border-left-width: 6px;
+  border-top-left-radius: 20px;
+  cursor: nwse-resize;
+}
+
+.lens-corner.tr {
+  top: -7px;
+  right: -7px;
+  border-top-width: 6px;
+  border-right-width: 6px;
+  border-top-right-radius: 20px;
+  cursor: nesw-resize;
+}
+
+.lens-corner.bl {
+  bottom: -7px;
+  left: -7px;
+  border-bottom-width: 6px;
+  border-left-width: 6px;
+  border-bottom-left-radius: 20px;
+  cursor: nesw-resize;
+}
+
+.lens-corner.br {
+  bottom: -7px;
+  right: -7px;
+  border-bottom-width: 6px;
+  border-right-width: 6px;
+  border-bottom-right-radius: 20px;
+  cursor: nwse-resize;
+}
+
+.lens-label {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--yellow);
+  color: var(--ink-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  pointer-events: none;
+}

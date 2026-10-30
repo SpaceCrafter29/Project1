@@ -342,6 +342,35 @@ export const numberTheory: DemoScript = {
       ...(first ? { check_code: CODE.multiplesOf3, check_claim: '7 divides 2^n - 1 exactly when 3 divides n' } : noCheck),
     };
   },
+  laterPartHint(input, level) {
+    if (input.progress.length === 0 && input.history.length === 0) {
+      return {
+        progress: '',
+        status: 'not_started',
+        hint: S`In (a) you found how the remainders of $2^n$ modulo 7 behave. How can you apply what you learned in (a) here?`,
+        question: S`Which remainder would $2^n$ need for $7 \mid 2^n + 1$ – and which remainders can $2^n$ have at all?`,
+        level: 1,
+        tool: 'none',
+        focus_step: null,
+        ...noCheck,
+      };
+    }
+    const hints = [
+      'Compare the remainder that 2^n would need with the remainders you found in (a).',
+      S`You need $2^n \equiv 6 \pmod 7$. Does 6 ever appear among the remainders from (a)?`,
+      S`By (a), $2^n \bmod 7$ is always 2, 4 or 1 – never 6. Together with the key fact from (a), that is the whole argument for (b); write it down.`,
+    ];
+    return {
+      progress: level === 1 && input.progress.length > 0 ? 'You wrote down what (b) asks for.' : '',
+      status: level === 1 ? 'on_track' : 'stuck',
+      hint: hints[level - 1],
+      question: 'Is there anything in (a) you have not used yet?',
+      level,
+      tool: 'none',
+      focus_step: null,
+      ...noCheck,
+    };
+  },
   steps: DEMO_STEPS,
   ownVersionSteps: OWN_VERSION_STEPS,
   verdicts: VERDICTS,

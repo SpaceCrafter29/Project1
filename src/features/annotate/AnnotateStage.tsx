@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ChatTurn } from '../../../shared/api';
 import { ChatThread } from '../../components/ChatThread';
-import { PenCanvas, type Point } from '../../components/PenCanvas';
+import { PenCanvas, type Box, type Point } from '../../components/PenCanvas';
 import { Button, Card, Empty } from '../../components/ui';
 import { api, errorMessage } from '../../lib/api';
 import { cropDataUrl, downscale, strokeBox } from '../../lib/image';
@@ -26,6 +26,18 @@ export function AnnotateStage({ session, update }: StageProps) {
       d.attempt!.annotations.push(annotation);
     });
     setActiveId(annotation.id);
+  };
+
+  /** The box was moved or resized: crop again, so the next question uses the new region. */
+  const changeBox = async (id: string, box: Box) => {
+    const annotation = attempt.annotations.find((a) => a.id === id);
+    if (!annotation) return;
+    const bbox = { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.w), h: Math.round(box.h) };
+    const crop = await cropDataUrl(attempt.images[annotation.page], bbox);
+    update((d) => {
+      const target = d.attempt!.annotations.find((a) => a.id === id);
+      if (target) Object.assign(target, { bbox, crop });
+    });
   };
 
   const ask = async (annotation: Annotation, question: string) => {
@@ -68,8 +80,8 @@ export function AnnotateStage({ session, update }: StageProps) {
       <div className="annotate-pages">
         <div className="annotate-toolbar">
           <p className="lead">
-            Circle a spot in your solution with the pen (or mouse, or finger), then ask about it – or just tap “Explain
-            this”.
+            Circle a spot in your solution with the pen (or mouse, or finger). It becomes a box you can drag at the corners
+            to fit – then ask about it, or just tap “Explain this”.
           </p>
           <Button variant={penOn ? 'primary' : 'secondary'} onClick={() => setPenOn((p) => !p)} data-testid="pen-toggle">
             {penOn ? 'Pen on' : 'Pen off – scrolling'}
@@ -81,10 +93,11 @@ export function AnnotateStage({ session, update }: StageProps) {
             src={src}
             markings={attempt.annotations
               .filter((a) => a.page === page)
-              .map((a) => ({ id: a.id, label: labelOf(a.id), stroke: a.stroke }))}
+              .map((a) => ({ id: a.id, label: labelOf(a.id), box: a.bbox }))}
             activeId={activeId}
             onStroke={(stroke, size) => void addMarking(page, stroke, size)}
             onSelect={setActiveId}
+            onBoxChange={(id, box) => void changeBox(id, box)}
             enabled={penOn}
             testId={`pen-page-${page + 1}`}
           />

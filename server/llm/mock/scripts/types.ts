@@ -28,6 +28,8 @@ export interface DemoScript {
   progressSteps: string[];
   /** A personalized tip; `level` is already escalated when the student made no progress. */
   nextHint(input: NextHintRequest, level: 1 | 2 | 3): NextHint;
+  /** Tips for part (b) and later, which can build on the earlier parts. */
+  laterPartHint(input: NextHintRequest, level: 1 | 2 | 3): NextHint;
   /** The scripted handwritten solution, and the student's later version with a new idea. */
   steps: string[];
   ownVersionSteps: string[];

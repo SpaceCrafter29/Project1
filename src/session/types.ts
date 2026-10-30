@@ -47,6 +47,8 @@ export interface Hints {
 export interface CoachingRound {
   id: string;
   createdAt: number;
+  /** The problem part this tip belongs to ("a", "b", …), "" if the problem has no parts. */
+  part?: string;
   /** Photos of the progress (none for the first tip or a tip asked without a photo). */
   images: string[];
   /** The progress as read and confirmed by the student. */
@@ -134,6 +136,9 @@ export interface Session {
   hints: Hints;
   /** The tip loop, oldest first (missing in sessions created before it existed). */
   coaching?: CoachingRound[];
+  /** The part currently worked on in the tip loop, and the parts the student finished. */
+  activePart?: string;
+  partsDone?: string[];
   attempt: Attempt | null;
   pastAttempts: Attempt[];
   correction: Correction | null;
