@@ -18,6 +18,9 @@ import { CODE, DEMO_PROBLEM, DEMO_STEPS, IDEAS, OWN_VERSION_STEPS, SOLUTIONS } f
 
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
 const demoIndex = (text: string) => DEMO_STEPS.findIndex((d) => squash(d) === squash(text));
+/** Finds a scripted solution step; the client may append "(because: …)" to the text. */
+const solutionStep = (text: string) =>
+  SOLUTIONS.flatMap((s) => s.steps).find((s) => text && squash(text).startsWith(squash(s.text)));
 
 const S = String.raw;
 
@@ -270,7 +273,7 @@ export class MockProvider implements LLMProvider {
       };
     }
     const marked = input.context.marked[0];
-    const justification = SOLUTIONS.flatMap((s) => s.steps).find((s) => squash(s.text) === squash(marked?.text ?? ''))?.justification;
+    const justification = solutionStep(marked?.text ?? '')?.justification;
     return {
       answer: justification
         ? S`Step ${marked.id}: ${justification} ${explain ? '' : S`About your question "${q}": the step only uses what is stated in the earlier steps, nothing else.`}`.trim()
@@ -320,7 +323,7 @@ export class MockProvider implements LLMProvider {
 
   private challenge(input: ChallengeRequest) {
     const step = input.solution.find((s) => s.id === input.stepId);
-    const justification = SOLUTIONS.flatMap((s) => s.steps).find((s) => squash(s.text) === squash(step?.text ?? ''))?.justification;
+    const justification = solutionStep(step?.text ?? '')?.justification;
     const usesEight = /2\^3|8/.test(step?.text ?? '');
     return {
       verdict: 'step_valid',

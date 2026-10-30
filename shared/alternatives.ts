@@ -79,3 +79,34 @@ export function decideAlternative(input: {
   }
   return { verdict, reasons };
 }
+
+export interface DevelopedAlternative {
+  id: string;
+  verification: Verification;
+  checks: ClaimCheck[];
+  answer: string;
+  /** Step ids that a student challenge showed to be flawed. */
+  flawedSteps: string[];
+}
+
+/**
+ * Decides all developed alternatives together: results are compared only against
+ * alternatives that survived their own checks.
+ */
+export function decideAll(items: DevelopedAlternative[]): Map<string, AlternativeDecision> {
+  const base = new Map(items.map((it) => [it.id, decideAlternative({ ...it, otherAnswers: [] })]));
+  const result = new Map<string, AlternativeDecision>();
+  for (const it of items) {
+    const otherAnswers = items
+      .filter((o) => o.id !== it.id && base.get(o.id)!.verdict !== 'discarded')
+      .map((o) => o.answer)
+      .filter(Boolean);
+    const decision = decideAlternative({ ...it, otherAnswers });
+    if (it.flawedSteps.length > 0 && decision.verdict !== 'discarded') {
+      decision.reasons.unshift(`Step ${it.flawedSteps.join(', ')} was found flawed after your challenge.`);
+      decision.verdict = 'unverified';
+    }
+    result.set(it.id, decision);
+  }
+  return result;
+}
