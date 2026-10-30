@@ -24,6 +24,18 @@ export function newSession(): Session {
   };
 }
 
+/** Work that was running when the page was closed cannot resume; let the student retry it. */
+function recoverInterrupted(session: Session): Session {
+  return produce(session, (d) => {
+    for (const alt of d.alternatives ?? []) {
+      if (alt.state === 'developing' || alt.state === 'checking') {
+        alt.state = 'failed';
+        alt.error = 'This was interrupted. Please try again.';
+      }
+    }
+  });
+}
+
 /** Loads a session, exposes an immer-based updater, and saves changes (debounced). */
 export function useSession(id: string): { session: Session | null; update: Updater; missing: boolean } {
   const [session, setSession] = useState<Session | null>(null);
@@ -52,7 +64,7 @@ export function useSession(id: string): { session: Session | null; update: Updat
       .then((store) => store.get(id))
       .then((s) => {
         if (cancelled) return;
-        if (s) setSession(s);
+        if (s) setSession(recoverInterrupted(s));
         else setMissing(true);
       });
     return () => {

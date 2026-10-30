@@ -200,3 +200,33 @@ test('mobile layout works', async ({ browser }) => {
   await page.screenshot({ path: path.join(shots, 'mobile-confirm.png'), fullPage: true });
   await context.close();
 });
+
+test('code-check sandbox has no network access', async ({ page }) => {
+  await page.goto('/');
+  const main = await (await page.request.get((await page.locator('script[type=module]').getAttribute('src'))!)).text();
+  const workerUrl = '/assets/' + main.match(/sandbox\.worker-[\w-]+\.js/)![0];
+  const res = await page.request.get(workerUrl);
+  expect(res.headers()['content-security-policy']).toContain("default-src 'none'");
+
+  const run = (code: string) =>
+    page.evaluate(
+      ({ url, code }) =>
+        new Promise<{ status: string; value?: unknown; error?: string }>((resolve) => {
+          const w = new Worker(url, { type: 'module' });
+          const t = setTimeout(() => resolve({ status: 'timeout' }), 4000);
+          w.onmessage = (e) => {
+            clearTimeout(t);
+            w.terminate();
+            resolve(e.data);
+          };
+          w.postMessage({ code });
+        }),
+      { url: workerUrl, code },
+    );
+
+  expect(await run('return { holds: true, detail: String(2n ** 64n) };')).toMatchObject({ status: 'ok', value: { holds: true } });
+  expect((await run("return fetch('/api/config');")).status).toBe('error');
+  expect((await run("return Object.getPrototypeOf(self).fetch ?? WorkerGlobalScope.prototype.fetch;")).value).toBeUndefined();
+  expect((await run("return import('/api/config').then(() => 'loaded');")).status).toBe('error');
+  expect((await run("return typeof indexedDB;")).value).toBe('undefined');
+});

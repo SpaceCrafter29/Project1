@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Usage } from '../shared/api';
+import { MathText } from './components/MathText';
 import { Button } from './components/ui';
 import { SessionView } from './features/SessionView';
 import { API_CALL_EVENT, api } from './lib/api';
@@ -51,6 +52,7 @@ function Home() {
   };
 
   const remove = async (id: string) => {
+    if (!window.confirm('Delete this problem and all your work on it?')) return;
     await (await getStore()).remove(id);
     setSessions((list) => list?.filter((s) => s.id !== id) ?? null);
   };
@@ -91,7 +93,7 @@ function Home() {
             {sessions.map((s) => (
               <li key={s.id}>
                 <a href={href({ name: 'session', id: s.id, tab: 'problem' })}>
-                  <strong>{titleOf(s)}</strong>
+                  <MathText text={titleOf(s)} className="session-title" />
                   <span className="muted small">
                     {new Date(s.updatedAt).toLocaleString()} · {progressOf(s)}
                   </span>
@@ -108,10 +110,14 @@ function Home() {
   );
 }
 
+/** First ~100 characters of the problem, cut outside of $…$ so the math still renders. */
 function titleOf(s: Session): string {
-  const text = s.problem?.transcript.replace(/\$[^$]*\$/g, '…').replace(/\s+/g, ' ').trim();
+  const text = s.problem?.transcript.replace(/\s+/g, ' ').trim();
   if (!text) return 'Untitled problem';
-  return text.length > 90 ? `${text.slice(0, 90)}…` : text;
+  if (text.length <= 100) return text;
+  let cut = text.slice(0, 100);
+  if ((cut.match(/\$/g)?.length ?? 0) % 2 === 1) cut = cut.slice(0, cut.lastIndexOf('$'));
+  return `${cut.trimEnd()} …`;
 }
 
 function progressOf(s: Session): string {

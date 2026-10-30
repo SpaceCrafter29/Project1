@@ -25,6 +25,14 @@ const provider: LLMProvider =
 
 const app = createApp(new Coach(provider, config.models), { provider: config.provider, models: config.models });
 
+// Model-written check code runs in this worker: no network access and no external scripts.
+app.use((req, res, next) => {
+  if (req.path.includes('sandbox.worker')) {
+    res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self' 'unsafe-eval'");
+  }
+  next();
+});
+
 if (process.env.NODE_ENV === 'production') {
   const dist = path.join(root, 'dist');
   if (!existsSync(dist)) throw new Error('dist/ not found – run "npm run build" first');

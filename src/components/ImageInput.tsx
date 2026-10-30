@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { fileToDataUrl } from '../lib/image';
 import { Button } from './ui';
 
+/** Mounted inputs; a pasted image goes to the most recently opened one. */
+const pasteTargets: symbol[] = [];
+
 /** Photo/screenshot input: camera, file picker, paste (Ctrl+V) and drag & drop. */
 export function ImageInput({
   images,
@@ -49,7 +52,10 @@ export function ImageInput({
   );
 
   useEffect(() => {
+    const me = Symbol('image-input');
+    pasteTargets.push(me);
     const onPaste = (event: ClipboardEvent) => {
+      if (pasteTargets[pasteTargets.length - 1] !== me) return;
       const files = [...(event.clipboardData?.items ?? [])]
         .filter((i) => i.kind === 'file')
         .map((i) => i.getAsFile())
@@ -60,7 +66,10 @@ export function ImageInput({
       }
     };
     window.addEventListener('paste', onPaste);
-    return () => window.removeEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('paste', onPaste);
+      pasteTargets.splice(pasteTargets.indexOf(me), 1);
+    };
   }, [addBlobs]);
 
   const onDrop = (event: DragEvent) => {

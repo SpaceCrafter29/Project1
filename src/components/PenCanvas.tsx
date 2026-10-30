@@ -21,9 +21,12 @@ export function PenCanvas({
   activeId,
   onStroke,
   onSelect,
+  enabled = true,
   testId,
 }: {
   src: string;
+  /** When false the image can be scrolled/zoomed normally (touch devices). */
+  enabled?: boolean;
   markings: Marking[];
   activeId?: string | null;
   onStroke: (stroke: Point[], size: { width: number; height: number }) => void;
@@ -145,7 +148,7 @@ export function PenCanvas({
           drawing.current = null;
           redraw();
         }}
-        style={{ width: size.w, height: size.h }}
+        style={{ width: size.w, height: size.h, pointerEvents: enabled ? 'auto' : 'none' }}
         aria-label="Draw around a part of your solution to ask about it"
       />
     </div>

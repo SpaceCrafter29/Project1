@@ -240,6 +240,7 @@ function SolutionView({
         onMark={openThread}
         renderStep={(s) => {
           const ch = alt.challenges[s.id];
+          const review = verification.steps.find((v) => v.id === s.id);
           return (
             <div className="solution-step" data-testid={`alt-step-${s.id}`}>
               <div className="solution-step-main">
@@ -249,6 +250,12 @@ function SolutionView({
                   {s.justification && (
                     <p className="justification">
                       <MathText text={s.justification} />
+                    </p>
+                  )}
+                  {review && review.follows !== 'yes' && (
+                    <p className="step-doubt">
+                      <Pill tone="warn">not fully justified</Pill>{' '}
+                      <MathText text={[review.hidden_assumptions, review.comment].filter(Boolean).join(' – ')} />
                     </p>
                   )}
                 </div>

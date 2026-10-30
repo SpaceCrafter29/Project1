@@ -15,6 +15,7 @@ export function AnnotateStage({ session, update }: StageProps) {
   const [activeId, setActiveId] = useState<string | null>(attempt.annotations.at(-1)?.id ?? null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [penOn, setPenOn] = useState(true);
 
   const addMarking = async (page: number, stroke: Point[], size: { width: number; height: number }) => {
     const bbox = strokeBox(stroke, size.width, size.height);
@@ -64,10 +65,15 @@ export function AnnotateStage({ session, update }: StageProps) {
   return (
     <div className="annotate">
       <div className="annotate-pages">
-        <p className="lead">
-          Circle a spot in your solution with the pen (or mouse, or finger), then ask about it – or just tap “Explain
-          this”.
-        </p>
+        <div className="annotate-toolbar">
+          <p className="lead">
+            Circle a spot in your solution with the pen (or mouse, or finger), then ask about it – or just tap “Explain
+            this”.
+          </p>
+          <Button variant={penOn ? 'primary' : 'secondary'} onClick={() => setPenOn((p) => !p)} data-testid="pen-toggle">
+            {penOn ? 'Pen on' : 'Pen off – scrolling'}
+          </Button>
+        </div>
         {attempt.images.map((src, page) => (
           <PenCanvas
             key={page}
@@ -78,6 +84,7 @@ export function AnnotateStage({ session, update }: StageProps) {
             activeId={activeId}
             onStroke={(stroke, size) => void addMarking(page, stroke, size)}
             onSelect={setActiveId}
+            enabled={penOn}
             testId={`pen-page-${page + 1}`}
           />
         ))}

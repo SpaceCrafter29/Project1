@@ -69,8 +69,8 @@ export function AlternativesStage({ session, update }: StageProps) {
   return (
     <div className="stack">
       <p className="lead">
-        Each idea is a different principle. Open one to see a complete solution – every solution is checked
-        independently before it is shown.
+        Each idea is a different principle. Open one to see a complete solution, ask about any step, or write your
+        own version with the idea.
       </p>
       <ol className="alternatives">
         {alternatives.map((alt) => (

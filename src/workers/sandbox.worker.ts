@@ -10,7 +10,8 @@ interface WorkerScope {
 const scope = self as unknown as WorkerScope & Record<string, unknown>;
 const post = scope.postMessage.bind(scope);
 
-// No network, storage or nested workers for generated code.
+// No network, storage or nested workers for generated code. Blocked on the whole
+// prototype chain; the server also sends a CSP without connect-src for this script.
 for (const name of [
   'fetch',
   'XMLHttpRequest',
@@ -24,10 +25,12 @@ for (const name of [
   'SharedWorker',
   'postMessage',
 ]) {
-  try {
-    Object.defineProperty(scope, name, { value: undefined, configurable: false, writable: false });
-  } catch {
-    // some properties cannot be redefined in every browser
+  for (let target: object | null = scope; target && target !== Object.prototype; target = Object.getPrototypeOf(target)) {
+    try {
+      Object.defineProperty(target, name, { value: undefined, configurable: false, writable: false });
+    } catch {
+      // some properties cannot be redefined in every browser
+    }
   }
 }
 

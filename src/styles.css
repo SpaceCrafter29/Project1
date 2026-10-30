@@ -1257,3 +1257,23 @@ blockquote {
     font-size: 1.8rem;
   }
 }
+
+.annotate-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.annotate-toolbar .lead {
+  margin-top: 0;
+}
+
+.session-title {
+  font-weight: 600;
+}
+
+.step-doubt {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+}
