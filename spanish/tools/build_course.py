@@ -288,7 +288,9 @@ def main():
     if out_json.exists():
         old = {u["id"]: u for u in json.loads(out_json.read_text())["units"]}
     engine = None if args.json_only else Engine()
-    (APP / "audio").mkdir(parents=True, exist_ok=True)
+    # Erst in einen Zwischenordner bauen, damit App-Audios und course.json nie auseinanderlaufen
+    stage = ROOT / ".tts-cache" / "stage"
+    stage.mkdir(parents=True, exist_ok=True)
 
     out_units = []
     for u in units:
@@ -296,7 +298,7 @@ def main():
         audio = {k: v for k, v in (old.get(u["id"], {}).get("audio") or {}).items() if k in VOICES}
         if engine and (not args.units or u["id"] in args.units):
             for vid in args.voices:
-                base = APP / "audio" / f"{u['id']}-{vid}"
+                base = stage / f"{u['id']}-{vid}"
                 n, s = build_sprite(engine, items, vid, base)
                 audio[vid] = dict(n=dict(file=f"audio/{base.name}-n.mp3", clips=n),
                                   s=dict(file=f"audio/{base.name}-s.mp3", clips=s))
@@ -305,6 +307,9 @@ def main():
                               grammar=u["grammar"], roleplay=u["roleplay"], items=items, audio=audio))
     have = {k for u in out_units for k in u["audio"]}
     voices = [dict(id=k, label=v["label"], speaker=v["speaker"]) for k, v in VOICES.items() if k in have]
+    (APP / "audio").mkdir(parents=True, exist_ok=True)
+    for f in sorted(stage.glob("*.mp3")):
+        os.replace(f, APP / "audio" / f.name)
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(dict(version=2, engine="XTTS-v2", voices=voices, units=out_units),
                                    ensure_ascii=False, separators=(",", ":")))
