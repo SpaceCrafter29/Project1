@@ -183,10 +183,16 @@ class Handler(SimpleHTTPRequestHandler):
         if not k or not text:
             return self._json(503, {"error": _tts_error or "kein Text"})
         import soundfile as sf
-        voice = req.get("voice") if req.get("voice") in ("ef_dora", "em_alex", "em_santa") else "ef_dora"
+        voice = req.get("voice") if req.get("voice") in ("ef_dora", "em_alex", "em_santa") else "em_alex"
         speed = min(1.2, max(0.6, float(req.get("speed") or 0.92)))
         with _tts_lock:
             samples, sr = k.create(text, voice=voice, speed=speed, lang="es")
+            try:  # Hauch/Zischen vor dem ersten Laut entfernen (wie bei den Kurs-Audios)
+                sys.path.insert(0, str(ROOT / "tools"))
+                from build_course import clean_onset
+                samples = clean_onset(samples, k.tokenizer.phonemize(text, "es"))
+            except Exception:
+                pass
         buf = io.BytesIO()
         sf.write(buf, samples, sr, format="WAV")
         body = buf.getvalue()
