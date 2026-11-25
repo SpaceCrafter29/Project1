@@ -35,6 +35,8 @@ CACHE = ROOT / ".tts-cache"
 
 VOICE_F = "ef_dora"
 VOICE_M = "em_alex"
+# Stimmensätze: "m" = nur Alex (Standard), "mix" = Dora und Alex im Wechsel
+VOICE_SETS = ["m", "mix"]
 SPEEDS = {"n": 0.92, "s": 0.68}   # normal / langsam
 PAD = 0.30                        # Stille zwischen Clips (Sekunden)
 MARGIN = 0.10                     # Sicherheitsrand beim Abspielen
@@ -42,19 +44,20 @@ SR = 24000
 BITRATE = "32k"
 
 
-def build_items(unit):
+def build_items(unit, vset="mix"):
     """Erzeugt die Liste aller Lern-Items einer Einheit mit Stimme."""
+    m = vset == "m"
     items = []
     uid = unit["id"]
     for i, (es, de) in enumerate(unit["vocab"], 1):
         items.append(dict(id=f"{uid}-v{i:02d}", kind="vocab", es=es, de=de,
-                          voice=VOICE_F if i % 2 else VOICE_M))
+                          voice=VOICE_M if m or i % 2 == 0 else VOICE_F))
     for i, (es, de) in enumerate(unit["phrases"], 1):
         items.append(dict(id=f"{uid}-p{i:02d}", kind="phrase", es=es, de=de,
-                          voice=VOICE_M if i % 2 else VOICE_F))
+                          voice=VOICE_M if m or i % 2 else VOICE_F))
     for i, (spk, es, de) in enumerate(unit["dialogue"], 1):
         items.append(dict(id=f"{uid}-d{i:02d}", kind="dialogue", es=es, de=de, speaker=spk,
-                          voice=VOICE_F if spk == "A" else VOICE_M))
+                          voice=VOICE_M if m or spk == "B" else VOICE_F))
     return items
 
 
@@ -168,10 +171,12 @@ def main():
         audio = {}
         todo = synth and (not args.units or u["id"] in args.units)
         if todo:
-            for sk in SPEEDS:
-                mp3 = APP / "audio" / f"{u['id']}-{sk}.mp3"
-                clips = build_sprite(synth, items, sk, mp3)
-                audio[sk] = dict(file=f"audio/{mp3.name}", clips=clips)
+            for vs in VOICE_SETS:
+                audio[vs] = {}
+                for sk in SPEEDS:
+                    mp3 = APP / "audio" / f"{u['id']}-{vs}-{sk}.mp3"
+                    clips = build_sprite(synth, build_items(u, vs), sk, mp3)
+                    audio[vs][sk] = dict(file=f"audio/{mp3.name}", clips=clips)
             print(f"{u['id']}: {len(items)} Clips", flush=True)
         elif u["id"] in old and old[u["id"]].get("audio"):
             audio = old[u["id"]]["audio"]
