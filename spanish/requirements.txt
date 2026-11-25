@@ -1,0 +1,5 @@
+# Optional: nur für Live-Sprachausgabe und zum Neubauen der Audios.
+# Der Server selbst braucht nur die Python-Standardbibliothek.
+kokoro-onnx>=0.4
+soundfile>=0.12
+numpy

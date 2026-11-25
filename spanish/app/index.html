@@ -1,0 +1,45 @@
+<title>Hablamos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Spanisch sprechen lernen: Lektionen, Wiederholung, Aussprache und Gespräche mit KI.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+
+<div class="app" id="app">
+  <header class="topbar">
+    <a class="brand" href="#hoy" aria-label="Hablamos, Startseite">
+      <span class="brand-tile" aria-hidden="true"></span>
+      <span class="brand-name">Hablamos</span>
+    </a>
+    <div class="topstats" id="topstats" aria-live="polite"></div>
+  </header>
+
+  <main id="view" class="view" tabindex="-1">
+    <section class="loading" id="boot">
+      <div class="brand-tile big" aria-hidden="true"></div>
+      <p>Kurs wird geladen …</p>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="Hauptnavigation">
+    <a href="#hoy" data-tab="hoy"><span class="ti ti-hoy" aria-hidden="true"></span>Heute</a>
+    <a href="#kurs" data-tab="kurs"><span class="ti ti-kurs" aria-hidden="true"></span>Kurs</a>
+    <a href="#hablar" data-tab="hablar"><span class="ti ti-hablar" aria-hidden="true"></span>Sprechen</a>
+    <a href="#plan" data-tab="plan"><span class="ti ti-plan" aria-hidden="true"></span>Plan</a>
+  </nav>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-inner" role="dialog" aria-modal="true" aria-label="Übung">
+    <div class="sheet-head">
+      <button class="icon-btn" id="sheet-close" aria-label="&Uuml;bung beenden">&#x2715;</button>
+      <div class="progress" aria-hidden="true"><div class="progress-fill" id="sheet-progress"></div></div>
+      <span class="sheet-count" id="sheet-count"></span>
+    </div>
+    <div class="sheet-body" id="sheet-body"></div>
+    <div class="sheet-foot" id="sheet-foot"></div>
+  </div>
+</div>
+
+<script src="app.js" charset="utf-8"></script>
