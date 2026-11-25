@@ -45,13 +45,14 @@ CACHE = ROOT / ".tts-cache" / "xtts"
 
 # Stimmen der App. „speaker“ ist einer der eingebauten XTTS-v2-Sprecher.
 VOICES = {
-    "m": dict(label="Männlich", speaker="Luis Moray"),
-    "f": dict(label="Weiblich", speaker="Alma María"),
+    "m": dict(label="Männlich", speaker="Ferran Simen"),
+    "f": dict(label="Weiblich", speaker="Daisy Studious"),
 }
 DIALOG_VOICE = {"A": "f", "B": "m"}   # Dialoge immer mit zwei Stimmen
 SLOW = 0.75                           # langsames Tempo (Zeitdehnung ohne Tonhöhenänderung)
 TEMPERATURE = 0.5
 MAX_TRIES = 5
+MAX_TRIES_SHORT = 10                  # kurze Wörter: XTTS „plappert“ öfter etwas dazu
 PAD = 0.30                            # Stille zwischen Clips (Sekunden)
 MARGIN = 0.10                         # Sicherheitsrand beim Abspielen
 SR = 24000
@@ -121,17 +122,51 @@ class Engine:
                                  temperature=TEMPERATURE, enable_text_splitting=False)
         return trim(np.asarray(out["wav"], dtype="float32"))
 
-    def _check(self, x, text):
+    def _check(self, x, text, cut=False):
         import numpy as np
         from scipy.signal import resample_poly
         segs, _ = self.whisper.transcribe(resample_poly(x, 2, 3).astype("float32"), language="es",
-                                          beam_size=5, vad_filter=False, condition_on_previous_text=False)
+                                          beam_size=5, vad_filter=False, condition_on_previous_text=False,
+                                          word_timestamps=cut)
         segs = list(segs)
         heard = " ".join(s.text for s in segs).strip()
         lp = float(np.mean([s.avg_logprob for s in segs])) if segs else -5.0
         lead = breath_ms(x) if starts_with_vowel(text) else 0
         w = wer(text, heard)
-        return dict(heard=heard, wer=round(w, 3), lp=round(lp, 3), lead=lead, ok=w == 0 and lead <= 20)
+        dur = len(x) / SR
+        too_long = dur > max_duration(text)
+        q = dict(heard=heard, wer=round(w, 3), lp=round(lp, 3), lead=lead, dur=round(dur, 2),
+                 ok=w == 0 and lead <= 20 and not too_long)
+        if cut:
+            q["_words"] = [(ww.word, ww.end) for s in segs for ww in (s.words or [])]
+        return q
+
+    def _cut_after_target(self, x, text, q):
+        """XTTS spricht nach kurzen Wörtern oft weiter („¡Hola, hola!“). Beginnt das Gehörte
+        mit genau dem Zieltext, wird in der Pause danach geschnitten und neu geprüft."""
+        import numpy as np
+        target = words(text)
+        got, end = [], None
+        for w_, t_end in q.get("_words", []):
+            got += words(w_)
+            if got[:len(target)] == target and len(got) >= len(target):
+                end = t_end
+                break
+            if got != target[:len(got)]:
+                return None
+        if end is None:
+            return None
+        lo, hi = max(0, int((end - 0.04) * SR)), min(len(x), int((end + 0.35) * SR))
+        fr = 480
+        if hi - lo < fr:
+            return None
+        energies = [(float(np.sqrt(np.mean(x[i:i + fr] ** 2))), i) for i in range(lo, hi - fr, 120)]
+        _, at = min(energies)
+        y = x[:at + fr // 2].copy()
+        n = min(len(y), 720)
+        y[-n:] *= np.linspace(1, 0, n, dtype=y.dtype)   # 30 ms ausblenden
+        q2 = self._check(trim(y), text)
+        return (trim(y), q2) if q2["ok"] else None
 
     def clip(self, text, speaker):
         """Liefert den geprüften Clip (aus dem Cache oder neu erzeugt)."""
@@ -141,9 +176,16 @@ class Engine:
         if not f.exists():
             CACHE.mkdir(parents=True, exist_ok=True)
             best = None
-            for seed in range(1, MAX_TRIES + 1):
-                x = self._gen(text, speaker, seed)
-                q = self._check(x, text)
+            short = len(words(text)) <= 3
+            for seed in range(1, (MAX_TRIES_SHORT if short else MAX_TRIES) + 1):
+                x = self._gen(spelling(text, seed), speaker, seed)
+                q = self._check(x, text, cut=True)
+                if not q["ok"]:
+                    fixed = self._cut_after_target(x, text, q)
+                    if fixed:
+                        x, q = fixed
+                        q["cut"] = True
+                q.pop("_words", None)
                 score = q["wer"] * 10 + (q["lead"] > 20) - q["lp"] * 0.1
                 if best is None or score < best[0]:
                     best = (score, x, q, seed)
@@ -157,6 +199,25 @@ class Engine:
             self.report.append(q)
         data, _ = sf.read(f, dtype="float32")
         return data
+
+
+def max_duration(text):
+    """Obergrenze für eine plausible Sprechdauer; länger heißt: das Modell hat weitergeredet."""
+    letters = sum(c.isalpha() for c in text)
+    pauses = len(re.findall(r"[,.;:?!…]\s+\S", text))
+    return 0.45 + 0.09 * letters + 0.35 * pauses
+
+
+def spelling(text, attempt):
+    """Andere Schreibweise je Versuch: ändert, wie XTTS den Text spricht, nicht was."""
+    if len(words(text)) > 3 or attempt <= 2:
+        return text
+    core = text.strip().strip("¡!¿?.…")
+    q = text.strip().startswith("¿")
+    variants = [core[:1].upper() + core[1:] + ("?" if q else "."),
+                ("¿" if q else "¡") + core[:1].upper() + core[1:] + ("?" if q else "!"),
+                core + "…"]
+    return variants[(attempt - 3) % len(variants)]
 
 
 def starts_with_vowel(text):

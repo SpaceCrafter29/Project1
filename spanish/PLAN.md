@@ -83,12 +83,10 @@
 
 | Aufgabe | Modell | Warum | Status |
 |---|---|---|---|
-| **Aussprache (Text → Sprache)** | **Kokoro-82M** (Apache 2.0), Stimmen *ef_dora* (weiblich) und *em_alex* (männlich) | Klein (82 Mio. Parameter), läuft auf jedem Laptop ohne GPU, klingt natürlich; die Lautschrift kommt von espeak-ng, korrekt für Spanien (θ in *cerveza*, ʎ in *llave*, x in *jamón*) | **Heruntergeladen und benutzt:** alle 788 Wörter, Sätze und Dialogzeilen sind vorab vertont (normal und langsam) und liegen in `spanish/app/audio/` |
+| **Aussprache (Text → Sprache)** | **XTTS-v2** (Coqui, frei für private Nutzung), eingebaute Sprecher für eine männliche und eine weibliche Stimme | Sehr natürliche spanische Aussprache, läuft ohne Grafikkarte | **Benutzt** für alle 788 Wörter, Sätze und Dialogzeilen (normal und langsam) |
+| **Qualitätsprüfung** | **Whisper medium** (OpenAI, MIT) | Hört jeden erzeugten Clip an; nur Clips, in denen Whisper exakt den Zieltext versteht und vor Vokalen kein Hauch ist, kommen in die App. Sonst wird bis zu 5-mal neu erzeugt. | **Benutzt** beim Bauen |
+| Erster Versuch | Kokoro-82M (Apache 2.0) | Klein und schnell, aber auf Spanisch zu schwach (gehauchtes „h“ vor Vokalen, „hola“ klang falsch) | Ersetzt; nur noch optional für Live-Vorlesen am Mac |
 | Gesprächspartner (LLM) | über **Ollama**, z. B. `gemma3:12b`, `qwen3:8b` oder `llama3.1:8b`; dein `gpt-oss:120b-cloud` geht auch | Laufen lokal und kostenlos; Gemma und Qwen sind in Spanisch besonders stark. Auf einem Mac mit 16 GB RAM laufen 8B-Modelle flüssig, 12B geht auch. | Muss auf deinem Mac geladen werden (`ollama pull gemma3:12b`) |
 | Spracherkennung | Spracherkennung des Browsers (Chrome / Safari) bzw. Claude-Diktat in der Online-Version | Kostenlos, kein Download | Eingebaut |
-| Alternative TTS | Piper (`es_ES-davefx-medium`, `es_MX-claude-high`) | Noch kleiner, etwas roboterhafter | Nicht benutzt |
-| Alternative TTS | Coqui XTTS-v2 | Sehr realistisch, Stimmklonen, aber nur nicht-kommerzielle Lizenz und braucht eine GPU | Nicht benutzt |
-| Alternative Spracherkennung | Whisper / faster-whisper (MIT) | Sehr genau, offline | Mögliche Erweiterung für den lokalen Server |
 
-Lateinamerikanische Aussprache (s statt θ) bekommst du mit:
-`python spanish/tools/build_course.py --variant latam`
+Audios neu bauen: `bash spanish/tools/download_models.sh`, `pip install -r spanish/requirements-audio.txt`, dann `python spanish/tools/build_course.py`.
