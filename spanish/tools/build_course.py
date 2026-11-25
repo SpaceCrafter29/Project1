@@ -66,6 +66,41 @@ def tts_text(es):
     return t
 
 
+# Laute, bei denen die Stimme sofort einsetzt (Vokale, stummes h, Nasale, l, r, b/d/g …)
+VOICED = set("aeiouáéíóúmnɲlʎʝbdgɾrβðɣwj")
+
+
+def clean_onset(x, phonemes):
+    """Entfernt das Atem-/Zischgeräusch, das Kokoro manchmal vor dem ersten Laut erzeugt.
+
+    Ohne diese Korrektur klingt z. B. „hola“ wie „sch-ola“. Nur bei stimmhaftem Anlaut:
+    echte Zischlaute (s, z, j, f, ch) und Verschlusslaute (p, t, k) bleiben unangetastet.
+    """
+    import numpy as np
+    p = phonemes.lstrip("ˈˌ ¡¿\"")
+    if not p or p[0] not in VOICED:
+        return x
+    fr = 240  # 10 ms
+    q = np.fft.rfftfreq(fr, 1 / SR)
+    def voiced(i):
+        f = x[i:i + fr]
+        if len(f) < fr:
+            return False
+        rms = float(np.sqrt(np.mean(f ** 2)))
+        sp = np.abs(np.fft.rfft(f * np.hanning(fr))) ** 2
+        return rms > 0.006 and sp[q > 3000].sum() / max(sp.sum(), 1e-12) < 0.1
+
+    # Stimmeinsatz = zwei stimmhafte 10-ms-Fenster hintereinander (5-ms-Raster)
+    v = next((i for i in range(0, min(len(x) - 2 * fr, SR // 3), fr // 2)
+              if voiced(i) and voiced(i + fr)), None)
+    if v is None:
+        return x
+    y = x[max(0, v - 120):].copy()  # 5 ms vor dem Stimmeinsatz
+    n = min(len(y), 240)
+    y[:n] *= np.linspace(0, 1, n, dtype=y.dtype)  # 10 ms weich einblenden
+    return y
+
+
 class Synth:
     def __init__(self, lang):
         from kokoro_onnx import Kokoro
@@ -88,7 +123,7 @@ class Synth:
                 samples = samples[max(0, nz[0] - 600): min(len(samples), nz[-1] + 1200)]
             sf.write(f, samples, sr)
         data, _ = sf.read(f, dtype="float32")
-        return data
+        return clean_onset(data, self.k.tokenizer.phonemize(text, self.lang))
 
 
 def build_sprite(synth, items, speed_key, out_mp3):
