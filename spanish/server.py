@@ -189,7 +189,7 @@ class Handler(SimpleHTTPRequestHandler):
             samples, sr = k.create(text, voice=voice, speed=speed, lang="es")
             try:  # Hauch/Zischen vor dem ersten Laut entfernen (wie bei den Kurs-Audios)
                 sys.path.insert(0, str(ROOT / "tools"))
-                from build_course import clean_onset
+                from audio_clean import clean_onset
                 samples = clean_onset(samples, k.tokenizer.phonemize(text, "es"))
             except Exception:
                 pass

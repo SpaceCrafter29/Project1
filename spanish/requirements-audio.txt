@@ -1,0 +1,10 @@
+# Nur zum Neubauen der Kurs-Audios (spanish/tools/build_course.py).
+# Die App und der lokale Server brauchen das nicht.
+coqui-tts[codec]>=0.28
+torch
+torchaudio
+transformers<5        # XTTS-v2 läuft noch nicht mit transformers 5
+faster-whisper>=1.1
+soundfile
+scipy
+six

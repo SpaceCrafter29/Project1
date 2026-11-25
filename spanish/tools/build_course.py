@@ -1,27 +1,35 @@
 #!/usr/bin/env python3
 """Baut course.json und die Audio-Dateien der App.
 
-Für jede Einheit werden alle Wörter, Sätze und Dialogzeilen mit Kokoro-82M
-(kostenloses Open-Source-TTS, Apache 2.0) gesprochen und pro Einheit und Tempo
-zu einer MP3-Datei zusammengefügt ("Audio-Sprite"). course.json enthält die
-Start- und Endzeit jedes Clips.
+Alle Wörter, Sätze und Dialogzeilen werden mit XTTS-v2 gesprochen (kostenloses
+Open-Source-Sprachmodell von Coqui, Lizenz: Coqui Public Model License, nur
+nicht-kommerziell). Jeder Clip wird anschließend von Whisper (OpenAI, MIT-Lizenz)
+angehört: Nur wenn Whisper genau den Zieltext versteht und vor einem Vokal kein
+Hauch zu messen ist, wird der Clip übernommen; sonst wird er neu erzeugt (bis zu
+MAX_TRIES Versuche, danach der beste Versuch mit Eintrag im Prüfbericht).
+
+Pro Einheit, Stimme und Tempo entsteht eine MP3-Datei („Audio-Sprite“);
+course.json enthält Start und Länge jedes Clips.
 
 Benutzung:
-    python spanish/tools/build_course.py              # alles bauen (mit Cache)
-    python spanish/tools/build_course.py --json-only  # nur course.json, ohne Audio
+    python spanish/tools/build_course.py                 # alle Stimmen, alle Einheiten
+    python spanish/tools/build_course.py --voices m      # nur die männliche Stimme
     python spanish/tools/build_course.py --units u01 u02
-    python spanish/tools/build_course.py --variant latam   # lateinamerikanische Aussprache (seseo)
+    python spanish/tools/build_course.py --json-only     # nur course.json, Audio unverändert
 
-Benötigt: pip install kokoro-onnx soundfile numpy, dazu ffmpeg. Die Modelldateien
-lädt spanish/tools/download_models.sh herunter.
+Benötigt (siehe spanish/requirements-audio.txt): coqui-tts[codec], torch,
+transformers<5, faster-whisper, soundfile, scipy, ffmpeg. Modelle lädt
+spanish/tools/download_models.sh herunter.
 """
 import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,204 +38,221 @@ from units_a1 import UNITS_A1  # noqa: E402
 from units_a2 import UNITS_A2  # noqa: E402
 
 APP = ROOT / "app"
-MODELS = Path(os.environ.get("KOKORO_DIR", ROOT / "models" / "kokoro"))
-CACHE = ROOT / ".tts-cache"
+MODELS = ROOT / "models"
+XTTS_DIR = Path(os.environ.get("XTTS_DIR", MODELS / "xtts"))
+WHISPER_DIR = Path(os.environ.get("WHISPER_DIR", MODELS / "whisper-medium"))
+CACHE = ROOT / ".tts-cache" / "xtts"
 
-VOICE_F = "ef_dora"
-VOICE_M = "em_alex"
-# Stimmensätze: "m" = nur Alex (Standard), "mix" = Dora und Alex im Wechsel
-VOICE_SETS = ["m", "mix"]
-SPEEDS = {"n": 0.92, "s": 0.68}   # normal / langsam
-PAD = 0.30                        # Stille zwischen Clips (Sekunden)
-MARGIN = 0.10                     # Sicherheitsrand beim Abspielen
+# Stimmen der App. „speaker“ ist einer der eingebauten XTTS-v2-Sprecher.
+VOICES = {
+    "m": dict(label="Männlich", speaker="Luis Moray"),
+    "f": dict(label="Weiblich", speaker="Alma María"),
+}
+DIALOG_VOICE = {"A": "f", "B": "m"}   # Dialoge immer mit zwei Stimmen
+SLOW = 0.75                           # langsames Tempo (Zeitdehnung ohne Tonhöhenänderung)
+TEMPERATURE = 0.5
+MAX_TRIES = 5
+PAD = 0.30                            # Stille zwischen Clips (Sekunden)
+MARGIN = 0.10                         # Sicherheitsrand beim Abspielen
 SR = 24000
-BITRATE = "32k"
+BITRATE = "40k"
 
 
-def build_items(unit, vset="mix"):
-    """Erzeugt die Liste aller Lern-Items einer Einheit mit Stimme."""
-    m = vset == "m"
-    items = []
+def build_items(unit):
     uid = unit["id"]
-    for i, (es, de) in enumerate(unit["vocab"], 1):
-        items.append(dict(id=f"{uid}-v{i:02d}", kind="vocab", es=es, de=de,
-                          voice=VOICE_M if m or i % 2 == 0 else VOICE_F))
-    for i, (es, de) in enumerate(unit["phrases"], 1):
-        items.append(dict(id=f"{uid}-p{i:02d}", kind="phrase", es=es, de=de,
-                          voice=VOICE_M if m or i % 2 else VOICE_F))
-    for i, (spk, es, de) in enumerate(unit["dialogue"], 1):
-        items.append(dict(id=f"{uid}-d{i:02d}", kind="dialogue", es=es, de=de, speaker=spk,
-                          voice=VOICE_M if m or spk == "B" else VOICE_F))
+    items = [dict(id=f"{uid}-v{i:02d}", kind="vocab", es=es, de=de) for i, (es, de) in enumerate(unit["vocab"], 1)]
+    items += [dict(id=f"{uid}-p{i:02d}", kind="phrase", es=es, de=de) for i, (es, de) in enumerate(unit["phrases"], 1)]
+    items += [dict(id=f"{uid}-d{i:02d}", kind="dialogue", es=es, de=de, speaker=spk)
+              for i, (spk, es, de) in enumerate(unit["dialogue"], 1)]
     return items
 
 
+def voice_of(item, vid):
+    return VOICES[DIALOG_VOICE[item["speaker"]] if item["kind"] == "dialogue" else vid]["speaker"]
+
+
 def tts_text(es):
-    # Kokoro liest Wörter ohne Satzzeichen manchmal abgehackt, ein Punkt hilft.
     t = es.strip()
     if t[-1] not in ".!?…":
         t += "."
     return t
 
 
-# Laute, bei denen die Stimme sofort einsetzt (Vokale, stummes h, Nasale, l, r, b/d/g …)
-VOICED = set("aeiouáéíóúmnɲlʎʝbdgɾrβðɣwj")
+def words(s):
+    """Normalisierte Wortliste zum Vergleich (ohne Akzente und Satzzeichen, ñ bleibt)."""
+    s = unicodedata.normalize("NFD", s.lower()).replace("ñ", "ñ")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-zñ0-9 ]", " ", s).split()
 
 
-VOWELS = set("aeiouáéíóúwj")  # inkl. hie-/hue- (ʝ/w-Anlaut zählt nicht dazu)
+def wer(target, heard):
+    a, b = words(target), words(heard)
+    d = list(range(len(b) + 1))
+    for i in range(1, len(a) + 1):
+        p = d[:]
+        d[0] = i
+        for j in range(1, len(b) + 1):
+            d[j] = min(p[j] + 1, d[j - 1] + 1, p[j - 1] + (a[i - 1] != b[j - 1]))
+    return d[len(b)] / max(1, len(a))
 
 
-def trim_to_voicing(x):
-    """Schneidet bei Vokal-Anlaut alles vor dem Einsatz der schwingenden Stimme ab.
+class Engine:
+    """XTTS-v2 zum Sprechen, Whisper zum Prüfen."""
 
-    Kokoro haucht vor Vokalen oft ein deutliches „h“ (hola klang wie mit h). Ein Hauch hat
-    keinen Grundton, ein Vokal schon: Gesucht wird das erste Stück mit Grundton (70–400 Hz)
-    und ausreichender Lautstärke.
-    """
-    import numpy as np
-    fr, hop = 480, 120  # 20-ms-Fenster, 5-ms-Schritt
-    lo, hi = SR // 400, SR // 70
-    peak = max(float(np.sqrt(np.mean(x[i:i + fr] ** 2))) for i in range(0, max(1, len(x) - fr), hop))
+    def __init__(self):
+        import torch
+        from faster_whisper import WhisperModel
+        from TTS.tts.configs.xtts_config import XttsConfig
+        from TTS.tts.models.xtts import Xtts
+        torch.set_num_threads(os.cpu_count() or 4)
+        cfg = XttsConfig()
+        cfg.load_json(str(XTTS_DIR / "config.json"))
+        self.tts = Xtts.init_from_config(cfg)
+        self.tts.load_checkpoint(cfg, checkpoint_dir=str(XTTS_DIR), eval=True)
+        self.whisper = WhisperModel(str(WHISPER_DIR), device="cpu", compute_type="int8")
+        self.torch = torch
+        self.report = []
 
-    def voiced(i):
-        f = x[i:i + fr]
-        if len(f) < fr:
-            return False
-        f = f - f.mean()
-        rms = float(np.sqrt(np.mean(f ** 2)))
-        if rms < 0.15 * peak:
-            return False
-        ac = np.correlate(f, f, "full")[fr - 1:]
-        return ac[lo:hi].max() / max(ac[0], 1e-12) > 0.4
-
-    v = next((i for i in range(0, min(len(x) - 2 * fr, SR // 2), hop) if voiced(i) and voiced(i + hop)), None)
-    if v is None:
-        return x
-    y = x[v:].copy()
-    n = min(len(y), 120)
-    y[:n] *= np.linspace(0, 1, n, dtype=y.dtype)  # 5 ms weich einblenden
-    return y
-
-
-def clean_onset(x, phonemes):
-    """Entfernt das Atem-/Zischgeräusch, das Kokoro manchmal vor dem ersten Laut erzeugt.
-
-    Ohne diese Korrektur klingt z. B. „hola“ wie „sch-ola“. Nur bei stimmhaftem Anlaut:
-    echte Zischlaute (s, z, j, f, ch) und Verschlusslaute (p, t, k) bleiben unangetastet.
-    """
-    import numpy as np
-    p = phonemes.lstrip("ˈˌ ¡¿\"")
-    if not p or p[0] not in VOICED:
-        return x
-    if p[0] in VOWELS:
-        return trim_to_voicing(x)
-    fr = 240  # 10 ms
-    q = np.fft.rfftfreq(fr, 1 / SR)
-    def voiced(i):
-        f = x[i:i + fr]
-        if len(f) < fr:
-            return False
-        rms = float(np.sqrt(np.mean(f ** 2)))
-        sp = np.abs(np.fft.rfft(f * np.hanning(fr))) ** 2
-        return rms > 0.006 and sp[q > 3000].sum() / max(sp.sum(), 1e-12) < 0.1
-
-    # Stimmeinsatz = zwei stimmhafte 10-ms-Fenster hintereinander (5-ms-Raster)
-    v = next((i for i in range(0, min(len(x) - 2 * fr, SR // 3), fr // 2)
-              if voiced(i) and voiced(i + fr)), None)
-    if v is None:
-        return x
-    y = x[max(0, v - 120):].copy()  # 5 ms vor dem Stimmeinsatz
-    n = min(len(y), 240)
-    y[:n] *= np.linspace(0, 1, n, dtype=y.dtype)  # 10 ms weich einblenden
-    return y
-
-
-class Synth:
-    def __init__(self, lang):
-        from kokoro_onnx import Kokoro
-        self.k = Kokoro(str(MODELS / "kokoro-v1.0.onnx"), str(MODELS / "voices-v1.0.bin"))
-        self.lang = lang
-
-    def wav(self, text, voice, speed):
+    def _gen(self, text, speaker, seed):
         import numpy as np
+        s = self.tts.speaker_manager.speakers[speaker]
+        self.torch.manual_seed(seed)
+        out = self.tts.inference(text, "es", s["gpt_cond_latent"], s["speaker_embedding"],
+                                 temperature=TEMPERATURE, enable_text_splitting=False)
+        return trim(np.asarray(out["wav"], dtype="float32"))
+
+    def _check(self, x, text):
+        import numpy as np
+        from scipy.signal import resample_poly
+        segs, _ = self.whisper.transcribe(resample_poly(x, 2, 3).astype("float32"), language="es",
+                                          beam_size=5, vad_filter=False, condition_on_previous_text=False)
+        segs = list(segs)
+        heard = " ".join(s.text for s in segs).strip()
+        lp = float(np.mean([s.avg_logprob for s in segs])) if segs else -5.0
+        lead = breath_ms(x) if starts_with_vowel(text) else 0
+        w = wer(text, heard)
+        return dict(heard=heard, wer=round(w, 3), lp=round(lp, 3), lead=lead, ok=w == 0 and lead <= 20)
+
+    def clip(self, text, speaker):
+        """Liefert den geprüften Clip (aus dem Cache oder neu erzeugt)."""
         import soundfile as sf
-        key = hashlib.sha1(f"{self.lang}|{voice}|{speed}|{text}".encode()).hexdigest()[:16]
-        f = CACHE / f"{key}.wav"
+        key = hashlib.sha1(f"xtts2|{speaker}|{TEMPERATURE}|{text}".encode()).hexdigest()[:16]
+        f, meta = CACHE / f"{key}.wav", CACHE / f"{key}.json"
         if not f.exists():
             CACHE.mkdir(parents=True, exist_ok=True)
-            samples, sr = self.k.create(text, voice=voice, speed=speed, lang=self.lang)
-            assert sr == SR
-            # Stille am Anfang und Ende trimmen
-            a = np.abs(samples)
-            nz = np.where(a > 0.01)[0]
-            if len(nz):
-                samples = samples[max(0, nz[0] - 600): min(len(samples), nz[-1] + 1200)]
-            sf.write(f, samples, sr)
+            best = None
+            for seed in range(1, MAX_TRIES + 1):
+                x = self._gen(text, speaker, seed)
+                q = self._check(x, text)
+                score = q["wer"] * 10 + (q["lead"] > 20) - q["lp"] * 0.1
+                if best is None or score < best[0]:
+                    best = (score, x, q, seed)
+                if q["ok"]:
+                    break
+            _, x, q, seed = best
+            sf.write(f, x, SR)
+            meta.write_text(json.dumps(dict(text=text, speaker=speaker, seed=seed, **q), ensure_ascii=False))
+        q = json.loads(meta.read_text())
+        if not q["ok"]:
+            self.report.append(q)
         data, _ = sf.read(f, dtype="float32")
-        return clean_onset(data, self.k.tokenizer.phonemize(text, self.lang))
+        return data
 
 
-def build_sprite(synth, items, speed_key, out_mp3):
+def starts_with_vowel(text):
+    w = words(text)
+    return bool(w) and (w[0][0] in "aeiouh")
+
+
+def trim(x, thr=0.006):
+    import numpy as np
+    nz = np.where(np.abs(x) > thr)[0]
+    if not len(nz):
+        return x
+    y = x[max(0, nz[0] - 240): nz[-1] + 960].copy()
+    n = min(len(y), 96)
+    y[:n] *= np.linspace(0, 1, n, dtype=y.dtype)        # 4 ms ein-/ausblenden gegen Knacken
+    y[-n:] *= np.linspace(1, 0, n, dtype=y.dtype)
+    return y
+
+
+def breath_ms(x):
+    """Dauer von stimmlosem Rauschen (Hauch) vor dem ersten stimmhaften Laut."""
+    import numpy as np
+    n = 0
+    for i in range(0, len(x) - 480, 240):
+        f = x[i:i + 480]
+        if np.sqrt(np.mean(f ** 2)) < 0.008:
+            continue
+        f = f - f.mean()
+        ac = np.correlate(f, f, "full")[479:]
+        if ac[SR // 400:SR // 70].max() / max(ac[0], 1e-12) > 0.4:
+            break
+        n += 10
+    return n
+
+
+def build_sprite(engine, items, vid, base):
+    """Schreibt <base>-n.mp3 und <base>-s.mp3 und liefert die Clip-Positionen."""
     import numpy as np
     import soundfile as sf
     pad = np.zeros(int(PAD * SR), dtype="float32")
     parts, pos, clips = [pad], len(pad), {}
     for it in items:
-        d = synth.wav(tts_text(it["es"]), it["voice"], SPEEDS[speed_key])
-        start = pos / SR
+        d = engine.clip(tts_text(it["es"]), voice_of(it, vid))
+        clips[it["id"]] = [round(max(0, pos / SR - MARGIN), 3), round(len(d) / SR + 2 * MARGIN, 3)]
         parts += [d, pad]
         pos += len(d) + len(pad)
-        clips[it["id"]] = [round(max(0, start - MARGIN), 3), round(len(d) / SR + 2 * MARGIN, 3)]
-    audio = np.concatenate(parts)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        sf.write(tmp.name, audio, SR)
-        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", tmp.name, "-ac", "1",
-                        "-codec:a", "libmp3lame", "-b:a", BITRATE, str(out_mp3)], check=True)
+        sf.write(tmp.name, np.concatenate(parts), SR)
+        enc = ["-ac", "1", "-codec:a", "libmp3lame", "-b:a", BITRATE]
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", tmp.name, *enc, f"{base}-n.mp3"], check=True)
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", tmp.name, "-filter:a", f"atempo={SLOW}",
+                        *enc, f"{base}-s.mp3"], check=True)
         os.unlink(tmp.name)
-    return clips
+    slow = {k: [round(s / SLOW, 3), round(d / SLOW, 3)] for k, (s, d) in clips.items()}
+    return clips, slow
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json-only", action="store_true")
     ap.add_argument("--units", nargs="*")
-    ap.add_argument("--variant", choices=["spain", "latam"], default="spain")
+    ap.add_argument("--voices", nargs="*", default=list(VOICES))
     args = ap.parse_args()
 
-    lang = "es" if args.variant == "spain" else "es-419"
     units = UNITS_A1 + UNITS_A2
     out_json = APP / "data" / "course.json"
     old = {}
     if out_json.exists():
         old = {u["id"]: u for u in json.loads(out_json.read_text())["units"]}
-
-    synth = None if args.json_only else Synth(lang)
+    engine = None if args.json_only else Engine()
     (APP / "audio").mkdir(parents=True, exist_ok=True)
+
     out_units = []
     for u in units:
         items = build_items(u)
-        audio = {}
-        todo = synth and (not args.units or u["id"] in args.units)
-        if todo:
-            for vs in VOICE_SETS:
-                audio[vs] = {}
-                for sk in SPEEDS:
-                    mp3 = APP / "audio" / f"{u['id']}-{vs}-{sk}.mp3"
-                    clips = build_sprite(synth, build_items(u, vs), sk, mp3)
-                    audio[vs][sk] = dict(file=f"audio/{mp3.name}", clips=clips)
-            print(f"{u['id']}: {len(items)} Clips", flush=True)
-        elif u["id"] in old and old[u["id"]].get("audio"):
-            audio = old[u["id"]]["audio"]
-        for it in items:
-            it.pop("voice", None)
-        out_units.append(dict(
-            id=u["id"], level=u["level"], title=u["title"], goal=u["goal"], grammar=u["grammar"],
-            roleplay=u["roleplay"], items=items, audio=audio,
-        ))
+        audio = {k: v for k, v in (old.get(u["id"], {}).get("audio") or {}).items() if k in VOICES}
+        if engine and (not args.units or u["id"] in args.units):
+            for vid in args.voices:
+                base = APP / "audio" / f"{u['id']}-{vid}"
+                n, s = build_sprite(engine, items, vid, base)
+                audio[vid] = dict(n=dict(file=f"audio/{base.name}-n.mp3", clips=n),
+                                  s=dict(file=f"audio/{base.name}-s.mp3", clips=s))
+            print(f"{u['id']}: {len(items)} Clips · Stimmen {', '.join(args.voices)}", flush=True)
+        out_units.append(dict(id=u["id"], level=u["level"], title=u["title"], goal=u["goal"],
+                              grammar=u["grammar"], roleplay=u["roleplay"], items=items, audio=audio))
+    have = {k for u in out_units for k in u["audio"]}
+    voices = [dict(id=k, label=v["label"], speaker=v["speaker"]) for k, v in VOICES.items() if k in have]
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(json.dumps(dict(version=1, variant=args.variant, units=out_units),
+    out_json.write_text(json.dumps(dict(version=2, engine="XTTS-v2", voices=voices, units=out_units),
                                    ensure_ascii=False, separators=(",", ":")))
-    n = sum(len(u["items"]) for u in out_units)
-    print(f"course.json: {len(out_units)} Einheiten, {n} Items")
+    print(f"course.json: {len(out_units)} Einheiten, {sum(len(u['items']) for u in out_units)} Items")
+    if engine and engine.report:
+        rep = ROOT / "tools" / "pruefbericht.json"
+        uniq = {(r["speaker"], r["text"]): r for r in engine.report}
+        rep.write_text(json.dumps(list(uniq.values()), ensure_ascii=False, indent=1))
+        print(f"Prüfbericht: {len(uniq)} Clips nicht perfekt → {rep}")
 
 
 if __name__ == "__main__":

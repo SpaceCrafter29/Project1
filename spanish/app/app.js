@@ -213,8 +213,8 @@ const ICON_SLOW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_MIC = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>';
 const ICON_SEND = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 20.5 21 12 3 3.5v6.6l12 1.9-12 1.9z"/></svg>';
 
-/** Audio-Sprites der gewählten Stimme: "m" = Alex, "mix" = Dora und Alex. */
-const unitAudio = (u) => u?.audio?.[S.settings.voice] || u?.audio?.m || u?.audio?.mix || (u?.audio?.n ? u.audio : null);
+/** Audio-Sprites der gewählten Stimme (Liste in course.json → voices). */
+const unitAudio = (u) => u?.audio?.[S.settings.voice] || u?.audio?.m || Object.values(u?.audio || {})[0];
 
 const Audio_ = {
   ctx: null, buffers: new Map(), loading: new Map(), current: null, el: null,
@@ -301,7 +301,7 @@ const Speak = {
     const ctrl = (this.ctrl = new AbortController());
     try {
       if (Env.local?.tts) {
-        const r = await fetch("api/tts", { method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, speed: rate < 0.9 ? 0.7 : 0.92, voice: S.settings.voice === "mix" ? "ef_dora" : "em_alex" }) });
+        const r = await fetch("api/tts", { method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, speed: rate < 0.9 ? 0.7 : 0.92, voice: S.settings.voice === "f" ? "ef_dora" : "em_alex" }) });
         if (ctrl.signal.aborted) return;
         if (r.ok) {
           const url = URL.createObjectURL(await r.blob());
@@ -1160,10 +1160,11 @@ function viewPlan(v) {
   // Einstellungen
   const goal = h("select.text", { id: "goal", "aria-label": "Tagesziel" }, [30, 60, 100, 150].map((g) => h("option", { value: g, selected: S.settings.goal === g }, `${g} XP pro Tag`)));
   goal.addEventListener("change", () => { S.settings.goal = +goal.value; save(); });
-  const voiceSel = h("select.text", { id: "voice", "aria-label": "Stimme" },
-    h("option", { value: "m", selected: S.settings.voice !== "mix" }, "Stimme: Alex (männlich)"),
-    h("option", { value: "mix", selected: S.settings.voice === "mix" }, "Stimme: Dora und Alex im Wechsel"));
-  voiceSel.addEventListener("change", () => { S.settings.voice = voiceSel.value; save(); Audio_.preload([nextUnit().id]); toast("Stimme geändert"); });
+  const voices = COURSE.voices || [];
+  const curVoice = voices.some((x) => x.id === S.settings.voice) ? S.settings.voice : voices[0]?.id;
+  const voiceSel = voices.length > 1 ? h("select.text", { id: "voice", "aria-label": "Stimme" },
+    voices.map((x) => h("option", { value: x.id, selected: x.id === curVoice }, `Stimme: ${x.label}`))) : null;
+  voiceSel?.addEventListener("change", () => { S.settings.voice = voiceSel.value; save(); Audio_.preload([nextUnit().id]); toast("Stimme geändert"); });
   const toggle = (key, label) => {
     const b = h("button.check" + (S.settings[key] ? ".done" : ""), { type: "button" }, h("span.box", null, S.settings[key] ? "✓" : ""), h("span.t", { style: { textDecoration: "none", color: "var(--ink)" } }, label));
     b.addEventListener("click", () => { S.settings[key] = !S.settings[key]; save(); route(); });
@@ -1186,7 +1187,7 @@ function viewPlan(v) {
       h("button.btn.ghost.sm", { onclick: () => (confirmReset.hidden = false) }, "Zurücksetzen"),
     ),
     exportBox, importBox, confirmReset,
-    h("p.small.muted", null, "Aussprache: Kokoro-82M (Open Source), Stimmen „Alex“ und „Dora“, Spanisch aus Spanien."),
+    h("p.small.muted", null, "Aussprache: XTTS-v2 (Open Source), jeder Clip mit Whisper geprüft."),
   ));
 }
 
